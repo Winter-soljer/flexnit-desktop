@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+:root {
+  --color-netflix-black: #141414;
+  --color-netflix-dark: #000000;
+  --color-netflix-red: #E50914;
+  --color-netflix-card: #181818;
+  --color-netflix-elevated: #282828;
+  --color-netflix-gray: #808080;
+  --color-netflix-light: #e5e5e5;
+}
+
+body {
+  background-color: #141414;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Custom Netflix-style scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #141414;
+}
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
+
+/* Ken Burns background subtle pan */
+@keyframes kenburns {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.06) translate(-1%, -1%);
+  }
+  100% {
+    transform: scale(1) translate(0, 0);
+  }
+}
+
+.animate-kenburns {
+  animation: kenburns 30s ease-in-out infinite alternate;
+}
+
+/* Hide scrollbar for carousel rails while keeping scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
