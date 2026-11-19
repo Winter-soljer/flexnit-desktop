@@ -11,9 +11,7 @@ export const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  const completedDownloadsCount = downloads.filter(
-    (d) => d.status === "completed"
-  ).length;
+  const downloadCount = downloads.length;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -34,7 +32,6 @@ export const Navbar: React.FC = () => {
     { label: "African Cinema", tab: "african" },
     { label: "New & Popular", tab: "popular" },
     { label: "My List", tab: "mylist" },
-    { label: "Downloads", tab: "downloads" },
   ];
 
   return (
@@ -42,7 +39,7 @@ export const Navbar: React.FC = () => {
       className={`fixed top-8 left-0 right-0 z-40 h-16 transition-colors duration-500 flex items-center justify-between px-8 md:px-14 select-none ${
         isScrolled
           ? "bg-[#141414] shadow-lg shadow-black/60"
-          : "bg-gradient-to-b from-black/80 via-black/40 to-transparent"
+          : "bg-gradient-to-b from-[#141414] via-[#141414]/80 to-transparent"
       }`}
     >
       {/* Left side: Logo & Nav items */}
@@ -68,11 +65,6 @@ export const Navbar: React.FC = () => {
                   }`}
                 >
                   {item.label}
-                  {item.tab === "downloads" && completedDownloadsCount > 0 && (
-                    <span className="ml-1.5 px-1.5 py-0.5 text-[10px] bg-red-600 text-white rounded-full font-bold">
-                      {completedDownloadsCount}
-                    </span>
-                  )}
                 </button>
               </li>
             );
@@ -128,43 +120,60 @@ export const Navbar: React.FC = () => {
 
         {/* Notifications Icon */}
         <button
-          className="text-zinc-200 hover:text-white transition-colors relative p-1"
+          onClick={() => {
+            setActiveTab("notifications");
+            setSearchQuery("");
+          }}
+          className={`transition-colors relative p-1.5 rounded hover:bg-white/10 ${
+            activeTab === "notifications"
+              ? "text-red-500 bg-white/5"
+              : "text-zinc-200 hover:text-white"
+          }`}
           title="Notifications"
         >
           <Bell className="w-5 h-5" />
           <span className="absolute top-1 right-1 w-2 h-2 bg-red-600 rounded-full" />
         </button>
 
-        {/* Downloads Quick Icon */}
+        {/* Downloads Quick Icon with Counter */}
         <button
           onClick={() => {
             setActiveTab("downloads");
             setSearchQuery("");
           }}
-          className={`transition-colors relative p-1 ${
+          className={`transition-colors relative p-1.5 rounded hover:bg-white/10 ${
             activeTab === "downloads"
-              ? "text-red-500"
+              ? "text-red-500 bg-white/5"
               : "text-zinc-200 hover:text-white"
           }`}
           title="Downloads"
         >
           <Download className="w-5 h-5" />
-          {completedDownloadsCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-              {completedDownloadsCount}
+          {downloadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 bg-red-600 text-white text-[9px] min-w-4 h-4 px-1 rounded-full flex items-center justify-center font-bold shadow-md shadow-red-600/50">
+              {downloadCount}
             </span>
           )}
         </button>
 
         {/* Profile Avatar */}
-        <div className="flex items-center space-x-1.5 cursor-pointer group">
+        <button
+          onClick={() => {
+            setActiveTab("profile");
+            setSearchQuery("");
+          }}
+          className={`flex items-center space-x-1.5 cursor-pointer group p-1 rounded transition-all hover:scale-105 ${
+            activeTab === "profile" ? "ring-2 ring-red-600 rounded-md bg-white/5" : ""
+          }`}
+          title="User Profile"
+        >
           <div className="w-8 h-8 rounded bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow">
             <User className="w-5 h-5" />
           </div>
           <span className="text-[10px] text-zinc-400 group-hover:text-white transition-colors">
             ▼
           </span>
-        </div>
+        </button>
       </div>
     </nav>
   );

@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { SplashScreen } from "./components/common/SplashScreen";
 import { TitleBar } from "./components/layout/TitleBar";
 import { Navbar } from "./components/layout/Navbar";
 import { HeroBanner } from "./components/home/HeroBanner";
@@ -10,7 +11,8 @@ import { MyListView } from "./components/mylist/MyListView";
 import { DownloadsView } from "./components/downloads/DownloadsView";
 import { DetailModal } from "./components/modals/DetailModal";
 import { VideoPlayerModal } from "./components/modals/VideoPlayerModal";
-import { Footer } from "./components/layout/Footer";
+import { NotificationsView } from "./components/notifications/NotificationsView";
+import { UserProfileView } from "./components/profile/UserProfileView";
 import { useMovieStore } from "./stores/useMovieStore";
 import { useAfricanStore } from "./stores/useAfricanStore";
 import { useHistoryStore } from "./stores/useHistoryStore";
@@ -54,6 +56,7 @@ export const App: React.FC = () => {
   const { feed, fetchAfricanFeed } = useAfricanStore();
   const { history } = useHistoryStore();
   const { activeTab, searchQuery } = useUIStore();
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     fetchHomeData();
@@ -64,6 +67,9 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#141414] text-white flex flex-col font-sans selection:bg-red-600 selection:text-white">
+      {/* Cinematic Splash Screen */}
+      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+
       {/* Custom Title Bar for frameless desktop window */}
       <TitleBar />
 
@@ -74,6 +80,10 @@ export const App: React.FC = () => {
       <main className="flex-1">
         {searchQuery.trim() ? (
           <SearchOverlay />
+        ) : activeTab === "notifications" ? (
+          <NotificationsView />
+        ) : activeTab === "profile" ? (
+          <UserProfileView />
         ) : activeTab === "african" ? (
           <AfricanSection />
         ) : activeTab === "african_catalog" ? (
@@ -263,9 +273,6 @@ export const App: React.FC = () => {
           </div>
         )}
       </main>
-
-      {/* Netflix Footer */}
-      <Footer />
 
       {/* Expanded Movie/TV Detail Modal */}
       <DetailModal />

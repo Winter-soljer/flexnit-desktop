@@ -1,9 +1,13 @@
 import React from "react";
 import { FlexnitLogo } from "../common/FlexnitLogo";
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  className?: string;
+}
+
+export const Footer: React.FC<FooterProps> = ({ className = "" }) => {
   return (
-    <footer className="mt-20 py-12 px-8 md:px-14 border-t border-zinc-900 bg-[#141414] text-zinc-500 text-xs select-none">
+    <footer className={`py-10 text-zinc-500 text-xs select-none ${className}`}>
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center space-x-3">
           <FlexnitLogo size="sm" />

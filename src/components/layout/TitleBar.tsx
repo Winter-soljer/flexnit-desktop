@@ -38,13 +38,17 @@ export const TitleBar: React.FC = () => {
   return (
     <div
       data-tauri-drag-region
-      className="fixed top-0 left-0 right-0 h-8 z-50 flex items-center justify-between px-3 bg-gradient-to-b from-black/90 to-transparent select-none text-white text-xs"
+      className="fixed top-0 left-0 right-0 h-8 z-50 flex items-center justify-between px-3 bg-[#141414] border-b border-white/5 select-none text-white text-xs shadow-sm"
     >
       <div
         data-tauri-drag-region
         className="flex items-center space-x-2 text-zinc-400 font-medium tracking-wider"
       >
-        <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+        <img
+          src="/icon.png"
+          alt="Flexnit"
+          className="w-4 h-4 object-contain rounded-xs shadow-sm shadow-red-600/30"
+        />
         <span className="text-[11px] font-semibold text-zinc-300">FLEXNIT DESKTOP</span>
       </div>
 

@@ -9,7 +9,9 @@ export type NavTab =
   | "african_catalog"
   | "popular"
   | "mylist"
-  | "downloads";
+  | "downloads"
+  | "notifications"
+  | "profile";
 
 interface PlayerState {
   media: UnifiedMedia;
