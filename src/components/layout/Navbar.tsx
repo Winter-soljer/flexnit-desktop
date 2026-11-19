@@ -150,7 +150,7 @@ export const Navbar: React.FC = () => {
         >
           <Download className="w-5 h-5" />
           {downloadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 bg-red-600 text-white text-[9px] min-w-4 h-4 px-1 rounded-full flex items-center justify-center font-bold shadow-md shadow-red-600/50">
+            <span className="absolute -top-0.5 -right-0.5 bg-[#E50914] text-white text-[9px] min-w-4 h-4 px-1 rounded-full flex items-center justify-center font-bold shadow-sm shadow-black/80">
               {downloadCount}
             </span>
           )}
@@ -163,11 +163,11 @@ export const Navbar: React.FC = () => {
             setSearchQuery("");
           }}
           className={`flex items-center space-x-1.5 cursor-pointer group p-1 rounded transition-all hover:scale-105 ${
-            activeTab === "profile" ? "ring-2 ring-red-600 rounded-md bg-white/5" : ""
+            activeTab === "profile" ? "ring-2 ring-white/60 rounded-md bg-white/5" : ""
           }`}
           title="User Profile"
         >
-          <div className="w-8 h-8 rounded bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow">
+          <div className="w-8 h-8 rounded bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow-sm shadow-black/80">
             <User className="w-5 h-5" />
           </div>
           <span className="text-[10px] text-zinc-400 group-hover:text-white transition-colors">

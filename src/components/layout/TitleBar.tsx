@@ -47,7 +47,7 @@ export const TitleBar: React.FC = () => {
         <img
           src="/icon.png"
           alt="Flexnit"
-          className="w-4 h-4 object-contain rounded-xs shadow-sm shadow-red-600/30"
+          className="w-4 h-4 object-contain rounded-xs"
         />
         <span className="text-[11px] font-semibold text-zinc-300">FLEXNIT DESKTOP</span>
       </div>
