@@ -145,14 +145,51 @@ export class DownloadEngine {
     }
 
     // TMDB Movie or TV Series: Resolve direct HLS stream (.m3u8) from Vidspark Vidora cluster
-    const VIDSPARK_PLAYER_KEY = "3a67e8866ae1d2bb9e81fe7f73315a56eb3bdf5e3e755c7554c8be6910aa6b13";
-    const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    const check = await this.checkTmdbStream(mediaId, mediaType, season, episode);
+    if (check.resolved && check.streamUrl) {
+      return check.streamUrl;
+    }
 
+    // If direct stream is not available in the offline cluster, throw clear error
+    // rather than passing an HTML embed webpage to FFmpeg or yt-dlp.
+    throw new Error(
+      "Direct cluster stream is not pre-indexed for this title. Please use Stream Bridge to stream or capture stream URL."
+    );
+  }
+
+  /**
+   * Checks whether a TMDB title has an indexed direct HLS stream (.m3u8)
+   */
+  async checkTmdbStream(
+    mediaId: number,
+    mediaType: "movie" | "series" = "movie",
+    season?: number,
+    episode?: number
+  ): Promise<{ resolved: boolean; streamUrl?: string; vidsparkUrl: string }> {
     const isTv = mediaType === "series" && season !== undefined && episode !== undefined;
     const vidsparkUrl = isTv
       ? `https://vidspark.to/tv/${mediaId}/${season}/${episode}`
       : `https://vidspark.to/movie/${mediaId}`;
 
+    // 1. Check local flexnitweb server if running (port 8080)
+    try {
+      const localUrl = isTv
+        ? `http://localhost:8080/api/tmdb/stream/${mediaId}/${season}/${episode}`
+        : `http://localhost:8080/api/tmdb/stream/${mediaId}?type=movie`;
+      const localRes = await axios.get(localUrl, { timeout: 1500 });
+      if (localRes.data?.resolved && localRes.data?.streamUrl) {
+        return {
+          resolved: true,
+          streamUrl: localRes.data.streamUrl,
+          vidsparkUrl,
+        };
+      }
+    } catch {
+      // Local web backend not running or not responding
+    }
+
+    // 2. Check Vidora cluster API directly
+    const VIDSPARK_PLAYER_KEY = "3a67e8866ae1d2bb9e81fe7f73315a56eb3bdf5e3e755c7554c8be6910aa6b13";
     const apiUrl = isTv
       ? `https://vidspark.to/api/vidora/v1/tv/${mediaId}/${season}/${episode}`
       : `https://vidspark.to/api/vidora/v1/movie/${mediaId}`;
@@ -162,24 +199,26 @@ export class DownloadEngine {
         headers: {
           "x-player-key": VIDSPARK_PLAYER_KEY,
           "Referer": vidsparkUrl,
-          "User-Agent": USER_AGENT,
           "Accept": "application/json, text/plain, */*",
         },
-        timeout: 6000,
+        timeout: 4000,
       });
 
       if (res.data?.result && Array.isArray(res.data?.sources) && res.data.sources[0]?.url) {
-        return res.data.sources[0].url;
+        return {
+          resolved: true,
+          streamUrl: res.data.sources[0].url,
+          vidsparkUrl,
+        };
       }
-    } catch (e: any) {
-      console.warn(`[DownloadEngine] Vidora cluster resolution failed for ${mediaType} ${mediaId}:`, e?.message);
+    } catch {
+      // Title not in Vidora direct cluster
     }
 
-    // If direct stream is not available in the offline cluster, throw clear error
-    // rather than passing an HTML embed webpage to FFmpeg or yt-dlp.
-    throw new Error(
-      "Download stream is not currently available for this title in the offline cluster. You can watch it directly in the player."
-    );
+    return {
+      resolved: false,
+      vidsparkUrl,
+    };
   }
 
   /**
@@ -195,6 +234,17 @@ export class DownloadEngine {
     onProgress: (info: DownloadProgressInfo) => void,
     title?: string
   ): Promise<string | null> {
+    // Safety guard: Never send raw embed player webpages to FFmpeg or yt-dlp
+    if (sourceUrl.includes("vidspark.to/movie/") || sourceUrl.includes("vidspark.to/tv/")) {
+      onProgress({
+        progress: 0,
+        status: "failed",
+        phase: "Stream Bridge Required",
+        error: "Direct stream not pre-indexed. Please open Stream Bridge to stream or provide stream URL.",
+      });
+      return null;
+    }
+
     const isDirectOrYouTube =
       sourceUrl.includes("youtube.com") ||
       sourceUrl.includes("youtu.be") ||

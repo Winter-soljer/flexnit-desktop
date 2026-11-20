@@ -7,8 +7,9 @@ import { downloadEngine } from "../../services/downloadEngine";
 import { UnifiedMedia } from "../../types/movie";
 
 export const DownloadsView: React.FC = () => {
-  const { downloads, removeDownload, retryDownload } = useDownloadStore();
+  const { downloads, removeDownload, retryDownload, clearFailedDownloads } = useDownloadStore();
   const { openPlayer } = useUIStore();
+  const hasFailed = downloads.some((d) => d.status === "failed");
 
   const handlePlayDownloaded = (item: any) => {
     const media: UnifiedMedia = {
@@ -43,8 +44,21 @@ export const DownloadsView: React.FC = () => {
           </p>
         </div>
 
-        <div className="text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg">
-          Total Downloads: <span className="font-bold text-white">{downloads.length} items</span>
+        <div className="flex items-center gap-2">
+          {hasFailed && (
+            <button
+              onClick={clearFailedDownloads}
+              className="text-xs text-red-400 hover:text-red-300 bg-red-950/40 hover:bg-red-950/70 border border-red-900/60 px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+              title="Clear all failed downloads from history"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Clear Failed</span>
+            </button>
+          )}
+
+          <div className="text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg">
+            Total Downloads: <span className="font-bold text-white">{downloads.length} items</span>
+          </div>
         </div>
       </div>
 
@@ -166,10 +180,10 @@ export const DownloadsView: React.FC = () => {
                     <button
                       onClick={() => retryDownload(item.id)}
                       className="flex items-center space-x-1 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer mr-1"
-                      title="Retry download"
+                      title={item.mediaType === "african" ? "Retry download" : "Open Stream Bridge to stream or download"}
                     >
                       <RotateCcw className="w-3.5 h-3.5 text-amber-400 mr-1" />
-                      <span>Retry</span>
+                      <span>{item.mediaType === "african" ? "Retry" : "Stream Bridge"}</span>
                     </button>
                   )}
 

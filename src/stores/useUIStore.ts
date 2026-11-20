@@ -20,12 +20,24 @@ interface PlayerState {
   sourceId?: string;
 }
 
+export interface StreamBridgeData {
+  title: string;
+  tmdbId: number;
+  type?: "movie" | "series" | "african";
+  season?: number;
+  episode?: number;
+  posterUrl?: string | null;
+  backdropUrl?: string | null;
+  vidsparkUrl?: string;
+}
+
 interface UIState {
   activeTab: NavTab;
   searchQuery: string;
   isSearchOpen: boolean;
   selectedMedia: UnifiedMedia | null;
   activePlayer: PlayerState | null;
+  streamBridgeData: StreamBridgeData | null;
   isWindowMaximized: boolean;
 
   setActiveTab: (tab: NavTab) => void;
@@ -35,6 +47,8 @@ interface UIState {
   closeDetailModal: () => void;
   openPlayer: (player: PlayerState) => void;
   closePlayer: () => void;
+  openStreamBridge: (data: StreamBridgeData) => void;
+  closeStreamBridge: () => void;
   setIsWindowMaximized: (maximized: boolean) => void;
 }
 
@@ -44,6 +58,7 @@ export const useUIStore = create<UIState>((set) => ({
   isSearchOpen: false,
   selectedMedia: null,
   activePlayer: null,
+  streamBridgeData: null,
   isWindowMaximized: false,
 
   setActiveTab: (tab) => set({ activeTab: tab, searchQuery: "" }),
@@ -53,5 +68,7 @@ export const useUIStore = create<UIState>((set) => ({
   closeDetailModal: () => set({ selectedMedia: null }),
   openPlayer: (player) => set({ activePlayer: player }),
   closePlayer: () => set({ activePlayer: null }),
+  openStreamBridge: (data) => set({ streamBridgeData: data }),
+  closeStreamBridge: () => set({ streamBridgeData: null }),
   setIsWindowMaximized: (maximized) => set({ isWindowMaximized: maximized }),
 }));

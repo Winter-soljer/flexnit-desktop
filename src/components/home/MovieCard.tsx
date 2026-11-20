@@ -5,6 +5,7 @@ import { getBackdropUrl, getPosterUrl } from "../../services/tmdb";
 import { useMyListStore } from "../../stores/useMyListStore";
 import { useDownloadStore } from "../../stores/useDownloadStore";
 import { useUIStore } from "../../stores/useUIStore";
+import { downloadEngine } from "../../services/downloadEngine";
 
 interface MovieCardProps {
   media: UnifiedMedia;
@@ -23,7 +24,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
 
   const { isInList, toggleItem } = useMyListStore();
   const { addDownload, downloads } = useDownloadStore();
-  const { openDetailModal, openPlayer } = useUIStore();
+  const { openDetailModal, openPlayer, openStreamBridge } = useUIStore();
 
   const isSaved = isInList(media.id);
   const backdrop =
@@ -49,19 +50,51 @@ export const MovieCard: React.FC<MovieCardProps> = ({
     toggleItem(media);
   };
 
-  const handleDownload = (e: React.MouseEvent) => {
+  const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    addDownload(
-      media.id,
-      media.mediaType,
-      media.title,
-      media.posterPath,
-      media.backdropPath,
-      undefined,
-      undefined,
-      undefined,
-      media.youtubeKey
-    );
+
+    if (media.mediaType === "african") {
+      addDownload(
+        media.id,
+        media.mediaType,
+        media.title,
+        media.posterPath,
+        media.backdropPath,
+        undefined,
+        undefined,
+        undefined,
+        media.youtubeKey
+      );
+      return;
+    }
+
+    // TMDB Movie or Series: check if direct cluster HLS stream is available
+    const check = await downloadEngine.checkTmdbStream(media.id, media.mediaType);
+    if (check.resolved && check.streamUrl) {
+      addDownload(
+        media.id,
+        media.mediaType,
+        media.title,
+        media.posterPath,
+        media.backdropPath,
+        undefined,
+        undefined,
+        undefined,
+        null,
+        check.streamUrl
+      );
+      return;
+    }
+
+    // Not in direct cluster -> open StreamBridgeModal so user can stream or paste stream URL
+    openStreamBridge({
+      title: media.title,
+      tmdbId: media.id,
+      type: media.mediaType,
+      posterUrl: media.posterPath,
+      backdropUrl: media.backdropPath,
+      vidsparkUrl: check.vidsparkUrl,
+    });
   };
 
   const handleOpenDetail = (e: React.MouseEvent) => {

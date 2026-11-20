@@ -15,9 +15,10 @@ import { tmdbService, getBackdropUrl, getPosterUrl } from "../../services/tmdb";
 import { useUIStore } from "../../stores/useUIStore";
 import { useMyListStore } from "../../stores/useMyListStore";
 import { useDownloadStore } from "../../stores/useDownloadStore";
+import { downloadEngine } from "../../services/downloadEngine";
 
 export const DetailModal: React.FC = () => {
-  const { selectedMedia, closeDetailModal, openPlayer } = useUIStore();
+  const { selectedMedia, closeDetailModal, openPlayer, openStreamBridge } = useUIStore();
   const { isInList, toggleItem } = useMyListStore();
   const { addDownload } = useDownloadStore();
 
@@ -122,18 +123,59 @@ export const DetailModal: React.FC = () => {
     openPlayer({ media: selectedMedia, season, episode });
   };
 
-  const handleDownload = (season?: number, episode?: number, epTitle?: string) => {
-    addDownload(
+  const handleDownload = async (season?: number, episode?: number, epTitle?: string) => {
+    if (!selectedMedia) return;
+
+    if (selectedMedia.mediaType === "african") {
+      addDownload(
+        selectedMedia.id,
+        selectedMedia.mediaType,
+        selectedMedia.title,
+        selectedMedia.posterPath,
+        selectedMedia.backdropPath,
+        season,
+        episode,
+        epTitle,
+        selectedMedia.youtubeKey
+      );
+      return;
+    }
+
+    // TMDB Movie or TV Series: check for direct HLS stream in Vidora cluster
+    const check = await downloadEngine.checkTmdbStream(
       selectedMedia.id,
       selectedMedia.mediaType,
-      selectedMedia.title,
-      selectedMedia.posterPath,
-      selectedMedia.backdropPath,
+      season,
+      episode
+    );
+
+    if (check.resolved && check.streamUrl) {
+      addDownload(
+        selectedMedia.id,
+        selectedMedia.mediaType,
+        selectedMedia.title,
+        selectedMedia.posterPath,
+        selectedMedia.backdropPath,
+        season,
+        episode,
+        epTitle,
+        null,
+        check.streamUrl
+      );
+      return;
+    }
+
+    // Not in direct cluster -> open StreamBridgeModal so user can stream or paste URL
+    openStreamBridge({
+      title: selectedMedia.title,
+      tmdbId: selectedMedia.id,
+      type: selectedMedia.mediaType,
       season,
       episode,
-      epTitle,
-      selectedMedia.youtubeKey
-    );
+      posterUrl: selectedMedia.posterPath,
+      backdropUrl: selectedMedia.backdropPath,
+      vidsparkUrl: check.vidsparkUrl,
+    });
   };
 
   return (

@@ -11,6 +11,7 @@ import { MyListView } from "./components/mylist/MyListView";
 import { DownloadsView } from "./components/downloads/DownloadsView";
 import { DetailModal } from "./components/modals/DetailModal";
 import { VideoPlayerModal } from "./components/modals/VideoPlayerModal";
+import { StreamBridgeModal } from "./components/modals/StreamBridgeModal";
 import { NotificationsView } from "./components/notifications/NotificationsView";
 import { UserProfileView } from "./components/profile/UserProfileView";
 import { useMovieStore } from "./stores/useMovieStore";
@@ -55,7 +56,7 @@ export const App: React.FC = () => {
 
   const { feed, fetchAfricanFeed } = useAfricanStore();
   const { history } = useHistoryStore();
-  const { activeTab, searchQuery } = useUIStore();
+  const { activeTab, searchQuery, streamBridgeData, closeStreamBridge } = useUIStore();
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
@@ -279,6 +280,13 @@ export const App: React.FC = () => {
 
       {/* In-App Fullscreen Video Player */}
       <VideoPlayerModal />
+
+      {/* TMDB Dynamic Stream Bridge Modal */}
+      <StreamBridgeModal
+        isOpen={Boolean(streamBridgeData)}
+        data={streamBridgeData}
+        onClose={closeStreamBridge}
+      />
     </div>
   );
 };

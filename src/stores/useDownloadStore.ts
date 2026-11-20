@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { DownloadItem } from "../types/streaming";
 import { downloadEngine, DownloadProgressInfo } from "../services/downloadEngine";
 import { SEED_AFRICAN_MOVIES } from "../services/africanSeed";
+import { useUIStore } from "./useUIStore";
 
 interface DownloadState {
   downloads: DownloadItem[];
@@ -14,10 +15,12 @@ interface DownloadState {
     season?: number,
     episode?: number,
     episodeTitle?: string,
-    youtubeKey?: string | null
+    youtubeKey?: string | null,
+    customSourceUrl?: string | null
   ) => Promise<void>;
   removeDownload: (id: string) => void;
   retryDownload: (id: string) => Promise<void>;
+  clearFailedDownloads: () => void;
   updateItem: (id: string, updates: Partial<DownloadItem>) => void;
 }
 
@@ -26,7 +29,23 @@ const STORAGE_KEY = "flexnit_downloads_v2";
 const loadDownloads = (): DownloadItem[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const items: DownloadItem[] = JSON.parse(raw);
+    return items.map((item) => {
+      // Purge raw embed webpages if stored from prior runs
+      if (
+        item.downloadUrl &&
+        (item.downloadUrl.includes("vidspark.to/movie/") || item.downloadUrl.includes("vidspark.to/tv/"))
+      ) {
+        return {
+          ...item,
+          downloadUrl: "",
+          status: "failed",
+          error: "Stream Bridge Required. Open Stream Bridge to stream or provide stream URL.",
+        };
+      }
+      return item;
+    });
   } catch {
     return [];
   }
@@ -52,7 +71,8 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
     season,
     episode,
     episodeTitle,
-    youtubeKey = null
+    youtubeKey = null,
+    customSourceUrl = null
   ) => {
     const id =
       mediaType === "series"
@@ -92,12 +112,12 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
       episode,
       episodeTitle,
       youtubeKey: resolvedYoutubeKey,
-      downloadUrl: "",
+      downloadUrl: customSourceUrl || "",
       progress: 1,
       status: "queued",
       downloadedAt: Date.now(),
       sizeFormatted: "1080p Full HD",
-      phase: "Resolving media stream...",
+      phase: customSourceUrl ? "Starting stream download..." : "Resolving media stream...",
     };
 
     // Filter out previous failed instance of same ID if any
@@ -108,14 +128,16 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
 
     try {
       // 1. Resolve source stream (.m3u8 or YouTube URL)
-      const sourceUrl = await downloadEngine.resolveSourceUrl(
-        mediaType,
-        mediaId,
-        season,
-        episode,
-        resolvedYoutubeKey,
-        cleanTitle
-      );
+      const sourceUrl =
+        customSourceUrl ||
+        (await downloadEngine.resolveSourceUrl(
+          mediaType,
+          mediaId,
+          season,
+          episode,
+          resolvedYoutubeKey,
+          cleanTitle
+        ));
 
       get().updateItem(id, { downloadUrl: sourceUrl, phase: "Starting download..." });
 
@@ -154,6 +176,44 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
     const item = get().downloads.find((d) => d.id === id);
     if (!item) return;
 
+    // For TMDB movies and TV series, verify if direct stream is available or open StreamBridge
+    if (item.mediaType === "movie" || item.mediaType === "series") {
+      const check = await downloadEngine.checkTmdbStream(
+        item.mediaId,
+        item.mediaType,
+        item.season,
+        item.episode
+      );
+      if (check.resolved && check.streamUrl) {
+        await get().addDownload(
+          item.mediaId,
+          item.mediaType,
+          item.title,
+          item.posterUrl,
+          item.backdropUrl,
+          item.season,
+          item.episode,
+          item.episodeTitle,
+          null,
+          check.streamUrl
+        );
+        return;
+      }
+
+      // If not in direct cluster, open StreamBridgeModal so user can stream or paste stream URL
+      useUIStore.getState().openStreamBridge({
+        title: item.title,
+        tmdbId: item.mediaId,
+        type: item.mediaType,
+        season: item.season,
+        episode: item.episode,
+        posterUrl: item.posterUrl,
+        backdropUrl: item.backdropUrl,
+        vidsparkUrl: check.vidsparkUrl,
+      });
+      return;
+    }
+
     let youtubeKey = item.youtubeKey;
     if (item.mediaType === "african" && (!youtubeKey || !/^[a-zA-Z0-9_-]{11}$/.test(youtubeKey.trim()))) {
       const match = SEED_AFRICAN_MOVIES.find(
@@ -179,6 +239,12 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
       item.episodeTitle,
       youtubeKey
     );
+  },
+
+  clearFailedDownloads: () => {
+    const updated = get().downloads.filter((d) => d.status !== "failed");
+    saveDownloads(updated);
+    set({ downloads: updated });
   },
 
   updateItem: (id: string, updates: Partial<DownloadItem>) => {
