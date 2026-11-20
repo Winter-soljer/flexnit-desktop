@@ -56,7 +56,11 @@ export const MovieCard: React.FC<MovieCardProps> = ({
       media.mediaType,
       media.title,
       media.posterPath,
-      media.backdropPath
+      media.backdropPath,
+      undefined,
+      undefined,
+      undefined,
+      media.youtubeKey
     );
   };
 

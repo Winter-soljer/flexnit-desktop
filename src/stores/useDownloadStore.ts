@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { DownloadItem } from "../types/streaming";
 import { downloadEngine, DownloadProgressInfo } from "../services/downloadEngine";
+import { SEED_AFRICAN_MOVIES } from "../services/africanSeed";
 
 interface DownloadState {
   downloads: DownloadItem[];
@@ -65,6 +66,21 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
 
     const cleanTitle = episodeTitle ? `${title} - ${episodeTitle}` : title;
 
+    // Self-healing: if African movie and youtubeKey is missing or invalid, resolve from seed catalog
+    let resolvedYoutubeKey = youtubeKey;
+    if (mediaType === "african" && (!resolvedYoutubeKey || !/^[a-zA-Z0-9_-]{11}$/.test(resolvedYoutubeKey.trim()))) {
+      const match = SEED_AFRICAN_MOVIES.find(
+        (m) =>
+          m.id === mediaId ||
+          m.title.toLowerCase().trim() === title.toLowerCase().trim() ||
+          m.title.toLowerCase().includes(title.toLowerCase().trim()) ||
+          title.toLowerCase().includes(m.title.toLowerCase().trim())
+      );
+      if (match?.youtubeVideoId) {
+        resolvedYoutubeKey = match.youtubeVideoId;
+      }
+    }
+
     const newItem: DownloadItem = {
       id,
       mediaId,
@@ -75,7 +91,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
       season,
       episode,
       episodeTitle,
-      youtubeKey,
+      youtubeKey: resolvedYoutubeKey,
       downloadUrl: "",
       progress: 1,
       status: "queued",
@@ -97,7 +113,8 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
         mediaId,
         season,
         episode,
-        youtubeKey
+        resolvedYoutubeKey,
+        cleanTitle
       );
 
       get().updateItem(id, { downloadUrl: sourceUrl, phase: "Starting download..." });
@@ -137,6 +154,20 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
     const item = get().downloads.find((d) => d.id === id);
     if (!item) return;
 
+    let youtubeKey = item.youtubeKey;
+    if (item.mediaType === "african" && (!youtubeKey || !/^[a-zA-Z0-9_-]{11}$/.test(youtubeKey.trim()))) {
+      const match = SEED_AFRICAN_MOVIES.find(
+        (m) =>
+          m.id === item.mediaId ||
+          m.title.toLowerCase().trim() === item.title.toLowerCase().trim() ||
+          m.title.toLowerCase().includes(item.title.toLowerCase().trim()) ||
+          item.title.toLowerCase().includes(m.title.toLowerCase().trim())
+      );
+      if (match?.youtubeVideoId) {
+        youtubeKey = match.youtubeVideoId;
+      }
+    }
+
     await get().addDownload(
       item.mediaId,
       item.mediaType,
@@ -146,7 +177,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
       item.season,
       item.episode,
       item.episodeTitle,
-      item.youtubeKey
+      youtubeKey
     );
   },
 

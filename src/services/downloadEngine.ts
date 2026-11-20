@@ -1,10 +1,11 @@
 import axios from "axios";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { SEED_AFRICAN_MOVIES } from "./africanSeed";
 
 const STREAMLINK_LOCAL = "http://127.0.0.1:8000";
 const STREAMLINK_CLOUD = "https://streamlink-pwlo23z5hq-uc.a.run.app";
-const FLEXNIT_WEB = "https://flexnitweb.web.app";
+const FLEXNIT_WEB = "https://flexnit-1.web.app";
 const API_KEY = "flexnit-streamlink-secret-2026";
 
 const isTauri = typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
@@ -102,29 +103,64 @@ export class DownloadEngine {
     mediaId: number,
     season?: number,
     episode?: number,
-    youtubeKey?: string | null
+    youtubeKey?: string | null,
+    title?: string
   ): Promise<string> {
     if (mediaType === "african") {
-      const key = youtubeKey || String(mediaId);
-      return `https://www.youtube.com/watch?v=${key}`;
+      // 1. Check if provided youtubeKey is already a valid 11-char YouTube ID
+      if (youtubeKey && /^[a-zA-Z0-9_-]{11}$/.test(youtubeKey.trim())) {
+        return `https://www.youtube.com/watch?v=${youtubeKey.trim()}`;
+      }
+
+      // 2. Lookup in SEED_AFRICAN_MOVIES by ID
+      const foundById = SEED_AFRICAN_MOVIES.find((m) => m.id === mediaId);
+      if (foundById?.youtubeVideoId && /^[a-zA-Z0-9_-]{11}$/.test(foundById.youtubeVideoId.trim())) {
+        return `https://www.youtube.com/watch?v=${foundById.youtubeVideoId.trim()}`;
+      }
+
+      // 3. Lookup in SEED_AFRICAN_MOVIES by Title
+      if (title) {
+        const normTitle = title.toLowerCase().trim();
+        const foundByTitle = SEED_AFRICAN_MOVIES.find(
+          (m) =>
+            m.title.toLowerCase().trim() === normTitle ||
+            m.title.toLowerCase().includes(normTitle) ||
+            normTitle.includes(m.title.toLowerCase().trim())
+        );
+        if (foundByTitle?.youtubeVideoId && /^[a-zA-Z0-9_-]{11}$/.test(foundByTitle.youtubeVideoId.trim())) {
+          return `https://www.youtube.com/watch?v=${foundByTitle.youtubeVideoId.trim()}`;
+        }
+      }
+
+      // 4. If youtubeKey is a full URL, use it
+      if (youtubeKey && (youtubeKey.includes("youtube.com") || youtubeKey.includes("youtu.be"))) {
+        return youtubeKey;
+      }
+
+      // 5. Fail-safe: query yt-dlp to search YouTube by title to find the movie
+      const cleanTitle = (title || `African Movie ${mediaId}`)
+        .replace(/[^a-zA-Z0-9 ]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      return `ytsearch1:${cleanTitle} Nollywood full movie`;
     }
 
-    // TMDB Movie or TV Series -> resolve through flexnitweb HLS cluster
+    // TMDB Movie or TV Series -> resolve through flexnit HLS cluster if available
     try {
       const url =
         mediaType === "series" && season && episode
           ? `${FLEXNIT_WEB}/api/tmdb/stream/${mediaId}/${season}/${episode}`
           : `${FLEXNIT_WEB}/api/tmdb/stream/${mediaId}?type=${mediaType}`;
 
-      const res = await axios.get(url, { timeout: 6000 });
+      const res = await axios.get(url, { timeout: 4000 });
       if (res.data && res.data.resolved && res.data.streamUrl) {
         return res.data.streamUrl;
       }
-    } catch (e) {
-      console.warn("Failed to resolve TMDB stream via web API, using fallback:", e);
+    } catch {
+      // Continue to StreamLink fallback
     }
 
-    // Fallback to VidSpark embed URL for extraction
+    // Fallback to VidSpark embed URL for StreamLink extraction
     if (mediaType === "series") {
       return `https://vidspark.to/tv/${mediaId}-${season || 1}-${episode || 1}`;
     }
@@ -133,8 +169,10 @@ export class DownloadEngine {
 
   /**
    * Starts an active background download:
-   * 1. If running inside Tauri desktop app, uses embedded yt-dlp + ffmpeg sidecar
-   * 2. If running inside web browser, uses StreamLink HTTP daemon / Cloud Run
+   * 1. If running inside Tauri desktop app AND source is direct media or YouTube:
+   *    Uses embedded native yt-dlp + ffmpeg sidecar.
+   * 2. If source is an embed player URL (vidspark, etc.) OR running on web:
+   *    Uses StreamLink extraction pipeline (local daemon or Cloud Run).
    */
   async startDownload(
     downloadId: string,
@@ -142,7 +180,14 @@ export class DownloadEngine {
     onProgress: (info: DownloadProgressInfo) => void,
     title?: string
   ): Promise<string | null> {
-    if (isTauri) {
+    const isDirectOrYouTube =
+      sourceUrl.includes("youtube.com") ||
+      sourceUrl.includes("youtu.be") ||
+      sourceUrl.startsWith("ytsearch") ||
+      sourceUrl.includes(".m3u8") ||
+      sourceUrl.includes(".mp4");
+
+    if (isTauri && isDirectOrYouTube) {
       this.progressCallbacks.set(downloadId, onProgress);
       try {
         onProgress({
@@ -163,17 +208,21 @@ export class DownloadEngine {
       } catch (err: any) {
         this.progressCallbacks.delete(downloadId);
         const msg = typeof err === "string" ? err : err?.message || "Native sidecar failed";
-        onProgress({
-          progress: 0,
-          status: "failed",
-          phase: "Failed",
-          error: msg,
-        });
-        return null;
+        console.warn("Native sidecar failed to spawn, falling back to StreamLink:", msg);
+        return this.startStreamLinkDownload(downloadId, sourceUrl, onProgress, title);
       }
     }
 
-    // Web Fallback: StreamLink service
+    // For embed URLs or web mode: Route to StreamLink extraction service
+    return this.startStreamLinkDownload(downloadId, sourceUrl, onProgress, title);
+  }
+
+  private async startStreamLinkDownload(
+    downloadId: string,
+    sourceUrl: string,
+    onProgress: (info: DownloadProgressInfo) => void,
+    title?: string
+  ): Promise<string | null> {
     const isYouTube = sourceUrl.includes("youtube.com") || sourceUrl.includes("youtu.be");
     let endpoint = await this.getEndpoint(true);
 
@@ -213,7 +262,7 @@ export class DownloadEngine {
       }
 
       const jobId = data.job_id;
-      this.pollJob(downloadId, jobId, endpoint, onProgress);
+      this.pollJob(downloadId, jobId, endpoint, onProgress, title);
       return jobId;
     } catch (err: any) {
       const msg = err.response?.data?.detail || err.message || "Failed to start download";
@@ -231,7 +280,8 @@ export class DownloadEngine {
     downloadId: string,
     jobId: string,
     endpoint: string,
-    onProgress: (info: DownloadProgressInfo) => void
+    onProgress: (info: DownloadProgressInfo) => void,
+    title?: string
   ) {
     if (this.activePollers.has(downloadId)) {
       clearInterval(this.activePollers.get(downloadId)!);
@@ -252,6 +302,31 @@ export class DownloadEngine {
           this.activePollers.delete(downloadId);
 
           const directDownloadUrl = `${endpoint}/api/v1/jobs/${jobId}/download`;
+
+          // If in Tauri desktop app, save the completed stream to local disk via native sidecar
+          if (isTauri) {
+            onProgress({
+              progress: 98,
+              status: "downloading",
+              phase: "Saving to local disk...",
+              fileUrl: directDownloadUrl,
+            });
+
+            try {
+              this.progressCallbacks.set(downloadId, onProgress);
+              await invoke("start_native_download", {
+                request: {
+                  id: downloadId,
+                  title: title || downloadId,
+                  source_url: directDownloadUrl,
+                },
+              });
+              return;
+            } catch (saveErr) {
+              console.warn("Sidecar disk save failed, using direct download URL:", saveErr);
+            }
+          }
+
           onProgress({
             progress: 100,
             status: "completed",
