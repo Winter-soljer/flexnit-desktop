@@ -121,9 +121,9 @@ export const DownloadsView: React.FC = () => {
 
                     {/* Error display if failed */}
                     {isFailed && (
-                      <div className="flex items-center space-x-1.5 text-xs text-red-400 pt-0.5 max-w-md">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{item.error || "Download failed. Click retry to resume."}</span>
+                      <div className="flex items-start space-x-1.5 text-xs text-red-400 pt-0.5 max-w-lg">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                        <span className="line-clamp-2" title={item.error}>{item.error || "Download failed. Click retry to resume."}</span>
                       </div>
                     )}
                   </div>

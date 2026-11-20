@@ -144,7 +144,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
     } catch (err: any) {
       get().updateItem(id, {
         status: "failed",
-        phase: "Failed",
+        phase: "Unavailable",
         error: err.message || "Failed to resolve stream",
       });
     }

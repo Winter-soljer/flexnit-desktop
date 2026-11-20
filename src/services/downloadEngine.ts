@@ -5,7 +5,6 @@ import { SEED_AFRICAN_MOVIES } from "./africanSeed";
 
 const STREAMLINK_LOCAL = "http://127.0.0.1:8000";
 const STREAMLINK_CLOUD = "https://streamlink-pwlo23z5hq-uc.a.run.app";
-const FLEXNIT_WEB = "https://flexnit-1.web.app";
 const API_KEY = "flexnit-streamlink-secret-2026";
 
 const isTauri = typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
@@ -145,26 +144,42 @@ export class DownloadEngine {
       return `ytsearch1:${cleanTitle} Nollywood full movie`;
     }
 
-    // TMDB Movie or TV Series -> resolve through flexnit HLS cluster if available
+    // TMDB Movie or TV Series: Resolve direct HLS stream (.m3u8) from Vidspark Vidora cluster
+    const VIDSPARK_PLAYER_KEY = "3a67e8866ae1d2bb9e81fe7f73315a56eb3bdf5e3e755c7554c8be6910aa6b13";
+    const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+    const isTv = mediaType === "series" && season !== undefined && episode !== undefined;
+    const vidsparkUrl = isTv
+      ? `https://vidspark.to/tv/${mediaId}/${season}/${episode}`
+      : `https://vidspark.to/movie/${mediaId}`;
+
+    const apiUrl = isTv
+      ? `https://vidspark.to/api/vidora/v1/tv/${mediaId}/${season}/${episode}`
+      : `https://vidspark.to/api/vidora/v1/movie/${mediaId}`;
+
     try {
-      const url =
-        mediaType === "series" && season && episode
-          ? `${FLEXNIT_WEB}/api/tmdb/stream/${mediaId}/${season}/${episode}`
-          : `${FLEXNIT_WEB}/api/tmdb/stream/${mediaId}?type=${mediaType}`;
+      const res = await axios.get(apiUrl, {
+        headers: {
+          "x-player-key": VIDSPARK_PLAYER_KEY,
+          "Referer": vidsparkUrl,
+          "User-Agent": USER_AGENT,
+          "Accept": "application/json, text/plain, */*",
+        },
+        timeout: 6000,
+      });
 
-      const res = await axios.get(url, { timeout: 4000 });
-      if (res.data && res.data.resolved && res.data.streamUrl) {
-        return res.data.streamUrl;
+      if (res.data?.result && Array.isArray(res.data?.sources) && res.data.sources[0]?.url) {
+        return res.data.sources[0].url;
       }
-    } catch {
-      // Continue to StreamLink fallback
+    } catch (e: any) {
+      console.warn(`[DownloadEngine] Vidora cluster resolution failed for ${mediaType} ${mediaId}:`, e?.message);
     }
 
-    // Fallback to VidSpark embed URL for StreamLink extraction
-    if (mediaType === "series") {
-      return `https://vidspark.to/tv/${mediaId}-${season || 1}-${episode || 1}`;
-    }
-    return `https://vidspark.to/movie/${mediaId}`;
+    // If direct stream is not available in the offline cluster, throw clear error
+    // rather than passing an HTML embed webpage to FFmpeg or yt-dlp.
+    throw new Error(
+      "Download stream is not currently available for this title in the offline cluster. You can watch it directly in the player."
+    );
   }
 
   /**
