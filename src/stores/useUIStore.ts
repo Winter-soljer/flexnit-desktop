@@ -20,24 +20,13 @@ interface PlayerState {
   sourceId?: string;
 }
 
-export interface StreamBridgeData {
-  title: string;
-  tmdbId: number;
-  type?: "movie" | "series" | "african";
-  season?: number;
-  episode?: number;
-  posterUrl?: string | null;
-  backdropUrl?: string | null;
-  vidsparkUrl?: string;
-}
-
 interface UIState {
   activeTab: NavTab;
   searchQuery: string;
   isSearchOpen: boolean;
   selectedMedia: UnifiedMedia | null;
+  previousDetailMedia: UnifiedMedia | null;
   activePlayer: PlayerState | null;
-  streamBridgeData: StreamBridgeData | null;
   isWindowMaximized: boolean;
 
   setActiveTab: (tab: NavTab) => void;
@@ -47,8 +36,6 @@ interface UIState {
   closeDetailModal: () => void;
   openPlayer: (player: PlayerState) => void;
   closePlayer: () => void;
-  openStreamBridge: (data: StreamBridgeData) => void;
-  closeStreamBridge: () => void;
   setIsWindowMaximized: (maximized: boolean) => void;
 }
 
@@ -57,18 +44,28 @@ export const useUIStore = create<UIState>((set) => ({
   searchQuery: "",
   isSearchOpen: false,
   selectedMedia: null,
+  previousDetailMedia: null,
   activePlayer: null,
-  streamBridgeData: null,
   isWindowMaximized: false,
 
   setActiveTab: (tab) => set({ activeTab: tab, searchQuery: "" }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setIsSearchOpen: (open) => set({ isSearchOpen: open }),
-  openDetailModal: (media) => set({ selectedMedia: media }),
-  closeDetailModal: () => set({ selectedMedia: null }),
-  openPlayer: (player) => set({ activePlayer: player }),
-  closePlayer: () => set({ activePlayer: null }),
-  openStreamBridge: (data) => set({ streamBridgeData: data }),
-  closeStreamBridge: () => set({ streamBridgeData: null }),
+  openDetailModal: (media) => set({ selectedMedia: media, previousDetailMedia: null }),
+  closeDetailModal: () => set({ selectedMedia: null, previousDetailMedia: null }),
+  // Auto-close detail modal when player opens, saving previous detail media so it re-opens on close
+  openPlayer: (player) =>
+    set((state) => ({
+      activePlayer: player,
+      previousDetailMedia: state.selectedMedia || state.previousDetailMedia || player.media,
+      selectedMedia: null,
+    })),
+  // Re-open detail modal when player is closed
+  closePlayer: () =>
+    set((state) => ({
+      activePlayer: null,
+      selectedMedia: state.previousDetailMedia,
+      previousDetailMedia: null,
+    })),
   setIsWindowMaximized: (maximized) => set({ isWindowMaximized: maximized }),
 }));

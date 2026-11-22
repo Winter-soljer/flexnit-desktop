@@ -150,10 +150,9 @@ export class DownloadEngine {
       return check.streamUrl;
     }
 
-    // If direct stream is not available in the offline cluster, throw clear error
-    // rather than passing an HTML embed webpage to FFmpeg or yt-dlp.
+    // If direct stream is not available in the cluster, throw clear error for automated retry
     throw new Error(
-      "Direct cluster stream is not pre-indexed for this title. Please use Stream Bridge to stream or capture stream URL."
+      "Direct stream not available in provider cluster. Click Retry to re-check."
     );
   }
 
@@ -234,25 +233,24 @@ export class DownloadEngine {
     onProgress: (info: DownloadProgressInfo) => void,
     title?: string
   ): Promise<string | null> {
-    // Safety guard: Never send raw embed player webpages to FFmpeg or yt-dlp
+    // Safety guard: If an embed webpage URL is accidentally passed, fail cleanly
     if (sourceUrl.includes("vidspark.to/movie/") || sourceUrl.includes("vidspark.to/tv/")) {
       onProgress({
         progress: 0,
         status: "failed",
-        phase: "Stream Bridge Required",
-        error: "Direct stream not pre-indexed. Please open Stream Bridge to stream or provide stream URL.",
+        phase: "Failed",
+        error: "Direct stream not pre-indexed. Click Retry to re-check.",
       });
       return null;
     }
 
-    const isDirectOrYouTube =
+    const isYouTube =
       sourceUrl.includes("youtube.com") ||
       sourceUrl.includes("youtu.be") ||
-      sourceUrl.startsWith("ytsearch") ||
-      sourceUrl.includes(".m3u8") ||
-      sourceUrl.includes(".mp4");
+      sourceUrl.startsWith("ytsearch");
 
-    if (isTauri && isDirectOrYouTube) {
+    // Native yt-dlp sidecar is specifically used for YouTube/African content (which works locally)
+    if (isTauri && isYouTube) {
       this.progressCallbacks.set(downloadId, onProgress);
       try {
         onProgress({
@@ -278,7 +276,7 @@ export class DownloadEngine {
       }
     }
 
-    // For embed URLs or web mode: Route to StreamLink extraction service
+    // For HLS .m3u8 streams (TMDB titles) and web fallback: Route to StreamLink microservice
     return this.startStreamLinkDownload(downloadId, sourceUrl, onProgress, title);
   }
 
@@ -309,24 +307,40 @@ export class DownloadEngine {
         phase: "Connecting to StreamLink pipeline...",
       });
 
-      const res = await axios.post(
-        `${endpoint}/api/v1/download`,
-        { url: sourceUrl, format: "mp4" },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": API_KEY,
-          },
-          timeout: 15000,
-        }
-      );
+      let res;
+      try {
+        res = await axios.post(
+          `${endpoint}/api/streamlink/download`,
+          { url: sourceUrl, stream_url: sourceUrl, format: "mp4" },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": API_KEY,
+            },
+            timeout: 15000,
+          }
+        );
+      } catch (postErr) {
+        // Fallback to /api/v1/download
+        res = await axios.post(
+          `${endpoint}/api/v1/download`,
+          { url: sourceUrl, format: "mp4" },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": API_KEY,
+            },
+            timeout: 15000,
+          }
+        );
+      }
 
       const data = res.data;
-      if (!data || !data.job_id) {
+      const jobId = data?.job_id || data?.id;
+      if (!data || !jobId) {
         throw new Error(data?.message || "Failed to initialize download job");
       }
 
-      const jobId = data.job_id;
       this.pollJob(downloadId, jobId, endpoint, onProgress, title);
       return jobId;
     } catch (err: any) {
@@ -354,10 +368,18 @@ export class DownloadEngine {
 
     const interval = setInterval(async () => {
       try {
-        const res = await axios.get(`${endpoint}/api/v1/jobs/${jobId}`, {
-          headers: { "X-API-Key": API_KEY },
-          timeout: 8000,
-        });
+        let res;
+        try {
+          res = await axios.get(`${endpoint}/api/streamlink/jobs/${jobId}`, {
+            headers: { "X-API-Key": API_KEY },
+            timeout: 8000,
+          });
+        } catch {
+          res = await axios.get(`${endpoint}/api/v1/jobs/${jobId}`, {
+            headers: { "X-API-Key": API_KEY },
+            timeout: 8000,
+          });
+        }
 
         const job = res.data;
         if (!job) return;
@@ -366,7 +388,7 @@ export class DownloadEngine {
           clearInterval(interval);
           this.activePollers.delete(downloadId);
 
-          const directDownloadUrl = `${endpoint}/api/v1/jobs/${jobId}/download`;
+          const directDownloadUrl = `${endpoint}/api/streamlink/jobs/${jobId}/download`;
 
           // If in Tauri desktop app, save the completed stream to local disk via native sidecar
           if (isTauri) {
@@ -420,7 +442,7 @@ export class DownloadEngine {
       } catch (e: any) {
         console.warn("StreamLink poll tick error:", e);
       }
-    }, 1500);
+    }, 900);
 
     this.activePollers.set(downloadId, interval);
   }

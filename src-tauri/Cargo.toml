@@ -4,6 +4,7 @@ version = "1.0.0"
 description = "Flexnit Desktop"
 authors = ["Tecfisher"]
 edition = "2024"
+build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

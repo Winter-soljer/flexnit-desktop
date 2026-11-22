@@ -1,9 +1,8 @@
 import React from "react";
-import { Download, Play, Trash2, CheckCircle2, Clock, AlertCircle, RotateCcw, Loader2, FolderOpen } from "lucide-react";
+import { Download, Play, Trash2, CheckCircle2, Clock, AlertCircle, RotateCcw, Loader2 } from "lucide-react";
 import { useDownloadStore } from "../../stores/useDownloadStore";
 import { useUIStore } from "../../stores/useUIStore";
 import { getPosterUrl, getBackdropUrl } from "../../services/tmdb";
-import { downloadEngine } from "../../services/downloadEngine";
 import { UnifiedMedia } from "../../types/movie";
 
 export const DownloadsView: React.FC = () => {
@@ -64,140 +63,178 @@ export const DownloadsView: React.FC = () => {
 
       {downloads.length > 0 ? (
         <div className="space-y-3">
-          {downloads.map((item) => {
-            const poster = getPosterUrl(item.posterUrl) || getBackdropUrl(item.backdropUrl);
-            const isDone = item.status === "completed";
-            const isFailed = item.status === "failed";
-            const isDownloading = item.status === "downloading" || item.status === "queued";
+          {(() => {
+            const queuedItems = downloads
+              .filter((d) => d.status === "queued")
+              .sort((a, b) => a.downloadedAt - b.downloadedAt);
 
-            return (
-              <div
-                key={item.id}
-                className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition-colors shadow-lg"
-              >
-                {/* Left side: Thumbnail & Info */}
-                <div className="flex items-center space-x-4 min-w-0">
-                  <div className="relative w-20 aspect-video rounded-md overflow-hidden bg-zinc-950 shrink-0 border border-zinc-800">
-                    {poster ? (
-                      <img src={poster} alt={item.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500">
-                        Media
-                      </div>
-                    )}
-                  </div>
+            return downloads.map((item) => {
+              const poster = getPosterUrl(item.posterUrl) || getBackdropUrl(item.backdropUrl);
+              const isDone = item.status === "completed";
+              const isFailed = item.status === "failed";
+              const isDownloading = item.status === "downloading";
+              const isQueued = item.status === "queued";
+              const queueIndex = isQueued
+                ? queuedItems.findIndex((q) => q.id === item.id)
+                : -1;
+              const queueLabel =
+                queueIndex === 0
+                  ? "Next in succession"
+                  : queueIndex > 0
+                  ? `In Queue (#${queueIndex + 1})`
+                  : undefined;
 
-                  <div className="min-w-0 space-y-1">
-                    <h3 className="text-sm font-bold text-white truncate max-w-md">
-                      {item.title}
-                    </h3>
-
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-400">
-                      <span className="capitalize">{item.mediaType}</span>
-                      <span>•</span>
-                      <span>{item.sizeFormatted || "1080p Full HD"}</span>
-                      {item.speed && (
-                        <>
-                          <span>•</span>
-                          <span className="text-amber-400 font-medium">{item.speed}</span>
-                        </>
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition-colors shadow-lg"
+                >
+                  {/* Left side: Thumbnail & Info */}
+                  <div className="flex items-center space-x-4 min-w-0">
+                    <div className="relative w-20 aspect-video rounded-md overflow-hidden bg-zinc-950 shrink-0 border border-zinc-800">
+                      {poster ? (
+                        <img src={poster} alt={item.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500">
+                          Media
+                        </div>
                       )}
-                      {item.eta && (
-                        <>
-                          <span>•</span>
-                          <span className="text-zinc-400">ETA {item.eta}</span>
-                        </>
-                      )}
-                      <span>•</span>
-                      <span className="flex items-center text-zinc-400">
-                        <Clock className="w-3 h-3 mr-1" />
-                        StreamLink Verified
-                      </span>
                     </div>
 
-                    {/* Progress Bar if downloading */}
-                    {isDownloading && (
-                      <div className="w-48 sm:w-80 space-y-1 pt-1">
-                        <div className="flex justify-between text-[10px] text-zinc-400">
-                          <span className="truncate mr-2 text-zinc-300">
-                            {item.phase || "Downloading stream chunks..."}
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-sm font-bold text-white truncate max-w-md">
+                          {item.title}
+                        </h3>
+                        {item.season && item.episode && (
+                          <span className="shrink-0 text-[10px] bg-red-950/80 border border-red-800/80 text-red-300 font-bold px-1.5 py-0.5 rounded">
+                            S{item.season}:E{item.episode}
                           </span>
-                          <span className="font-bold text-red-500">{item.progress}%</span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-400">
+                        <span className="capitalize">{item.mediaType}</span>
+                        <span>•</span>
+                        <span>{item.sizeFormatted || "1080p Full HD"}</span>
+                        {item.speed && (
+                          <>
+                            <span>•</span>
+                            <span className="text-amber-400 font-medium">{item.speed}</span>
+                          </>
+                        )}
+                        {item.eta && (
+                          <>
+                            <span>•</span>
+                            <span className="text-zinc-400">ETA {item.eta}</span>
+                          </>
+                        )}
+                        {isQueued && (
+                          <>
+                            <span>•</span>
+                            <span className="text-amber-400 font-medium flex items-center">
+                              <Clock className="w-3 h-3 mr-1" />
+                              {queueLabel || "Queued"}
+                            </span>
+                          </>
+                        )}
+                        <span>•</span>
+                        <span className="flex items-center text-zinc-400">
+                          <Clock className="w-3 h-3 mr-1" />
+                          StreamLink Verified
+                        </span>
+                      </div>
+
+                      {/* Progress Bar if actively downloading */}
+                      {isDownloading && (
+                        <div className="w-48 sm:w-80 space-y-1 pt-1">
+                          <div className="flex justify-between text-[10px] text-zinc-400">
+                            <span className="truncate mr-2 text-zinc-300">
+                              {item.phase || "Downloading stream chunks..."}
+                            </span>
+                            <span className="font-bold text-red-500">{item.progress}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-red-600 rounded-full transition-all duration-300"
+                              style={{ width: `${Math.max(3, item.progress)}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-red-600 rounded-full transition-all duration-300"
-                            style={{ width: `${Math.max(3, item.progress)}%` }}
-                          />
+                      )}
+
+                      {/* Queued notification if queued */}
+                      {isQueued && (
+                        <div className="pt-1 flex items-center space-x-1.5 text-[11px] text-amber-400/90 font-medium">
+                          <Clock className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">{item.phase || queueLabel || "Waiting for previous episode..."}</span>
                         </div>
+                      )}
+
+                      {/* Error display if failed */}
+                      {isFailed && (
+                        <div className="flex items-start space-x-1.5 text-xs text-red-400 pt-0.5 max-w-lg">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                          <span className="line-clamp-2" title={item.error}>{item.error || "Download failed. Click retry to resume."}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right side: Actions */}
+                  <div className="flex items-center space-x-2 shrink-0 ml-4">
+                    {isDone && (
+                      <>
+                        <span className="hidden sm:flex items-center text-xs text-green-400 font-semibold mr-2">
+                          <CheckCircle2 className="w-4 h-4 mr-1.5" /> Ready Offline
+                        </span>
+                        <button
+                          onClick={() => handlePlayDownloaded(item)}
+                          className="flex items-center space-x-1.5 px-4 py-2 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-lg transition-transform hover:scale-105 cursor-pointer shadow-md"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-black" />
+                          <span>Play</span>
+                        </button>
+                      </>
+                    )}
+
+                    {isDownloading && (
+                      <div className="flex items-center space-x-2 text-xs text-zinc-400 mr-2">
+                        <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
+                        <span className="hidden sm:inline font-medium">Downloading</span>
                       </div>
                     )}
 
-                    {/* Error display if failed */}
-                    {isFailed && (
-                      <div className="flex items-start space-x-1.5 text-xs text-red-400 pt-0.5 max-w-lg">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                        <span className="line-clamp-2" title={item.error}>{item.error || "Download failed. Click retry to resume."}</span>
+                    {isQueued && (
+                      <div className="flex items-center space-x-1.5 text-xs text-amber-400/90 mr-2 bg-amber-950/30 border border-amber-900/50 px-2 py-1 rounded">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline font-medium">{queueLabel || "Queued"}</span>
                       </div>
                     )}
+
+                    {isFailed && (
+                      <button
+                        onClick={() => retryDownload(item.id)}
+                        className="flex items-center space-x-1 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer mr-1"
+                        title="Retry download"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-amber-400 mr-1" />
+                        <span>Retry</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => removeDownload(item.id)}
+                      className="p-2 rounded-lg bg-zinc-800/80 hover:bg-red-600/20 text-zinc-400 hover:text-red-500 transition-colors cursor-pointer"
+                      title={isQueued ? "Remove from queue" : "Delete download"}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-
-                {/* Right side: Actions */}
-                <div className="flex items-center space-x-2 shrink-0 ml-4">
-                  {isDone && (
-                    <>
-                      <span className="hidden sm:flex items-center text-xs text-green-400 font-semibold mr-2">
-                        <CheckCircle2 className="w-4 h-4 mr-1.5" /> Ready Offline
-                      </span>
-                      {item.filePath && (
-                        <button
-                          onClick={() => downloadEngine.openInFolder(item.filePath!)}
-                          className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors cursor-pointer mr-1"
-                          title="Show in File Explorer"
-                        >
-                          <FolderOpen className="w-4 h-4 text-amber-400" />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handlePlayDownloaded(item)}
-                        className="flex items-center space-x-1.5 px-4 py-2 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-lg transition-transform hover:scale-105 cursor-pointer shadow-md"
-                      >
-                        <Play className="w-3.5 h-3.5 fill-black" />
-                        <span>Play</span>
-                      </button>
-                    </>
-                  )}
-
-                  {isDownloading && (
-                    <div className="flex items-center space-x-2 text-xs text-zinc-400 mr-2">
-                      <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
-                      <span className="hidden sm:inline font-medium">In Progress</span>
-                    </div>
-                  )}
-
-                  {isFailed && (
-                    <button
-                      onClick={() => retryDownload(item.id)}
-                      className="flex items-center space-x-1 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer mr-1"
-                      title={item.mediaType === "african" ? "Retry download" : "Open Stream Bridge to stream or download"}
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 text-amber-400 mr-1" />
-                      <span>{item.mediaType === "african" ? "Retry" : "Stream Bridge"}</span>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => removeDownload(item.id)}
-                    className="p-2 rounded-lg bg-zinc-800/80 hover:bg-red-600/20 text-zinc-400 hover:text-red-500 transition-colors cursor-pointer"
-                    title="Delete download"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-28 text-center text-zinc-500">

@@ -98,15 +98,19 @@ fn resolve_binary_path(app: &tauri::AppHandle, bin_name: &str) -> Result<PathBuf
 }
 
 fn get_default_downloads_dir(app: &tauri::AppHandle) -> PathBuf {
-    if let Ok(dir) = app.path().download_dir() {
-        let flexnit_dir = dir.join("Flexnit");
-        let _ = std::fs::create_dir_all(&flexnit_dir);
-        flexnit_dir
-    } else {
-        let fallback = PathBuf::from("Flexnit_Downloads");
-        let _ = std::fs::create_dir_all(&fallback);
-        fallback
-    }
+    let base_dir = app
+        .path()
+        .app_local_data_dir()
+        .unwrap_or_else(|_| {
+            if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+                PathBuf::from(local_app_data).join("Flexnit")
+            } else {
+                PathBuf::from("Flexnit_Downloads")
+            }
+        });
+    let downloads_dir = base_dir.join("downloads");
+    let _ = std::fs::create_dir_all(&downloads_dir);
+    downloads_dir
 }
 
 fn sanitize_filename(name: &str) -> String {

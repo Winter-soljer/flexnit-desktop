@@ -9,18 +9,26 @@ import {
   Clock,
   Calendar,
   Star,
+  CheckCircle2,
+  Loader2,
+  RotateCcw,
 } from "lucide-react";
 import { UnifiedMedia, CastMember, Season, Episode } from "../../types/movie";
 import { tmdbService, getBackdropUrl, getPosterUrl } from "../../services/tmdb";
 import { useUIStore } from "../../stores/useUIStore";
 import { useMyListStore } from "../../stores/useMyListStore";
 import { useDownloadStore } from "../../stores/useDownloadStore";
-import { downloadEngine } from "../../services/downloadEngine";
 
 export const DetailModal: React.FC = () => {
-  const { selectedMedia, closeDetailModal, openPlayer, openStreamBridge } = useUIStore();
+  const { selectedMedia, closeDetailModal, openPlayer } = useUIStore();
   const { isInList, toggleItem } = useMyListStore();
-  const { addDownload } = useDownloadStore();
+  const {
+    downloads,
+    addDownload,
+    downloadSeason,
+    cancelSeasonDownloads,
+    retryDownload,
+  } = useDownloadStore();
 
   const [cast, setCast] = useState<CastMember[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -123,59 +131,64 @@ export const DetailModal: React.FC = () => {
     openPlayer({ media: selectedMedia, season, episode });
   };
 
-  const handleDownload = async (season?: number, episode?: number, epTitle?: string) => {
+  const handleDownload = (season?: number, episode?: number, epTitle?: string) => {
     if (!selectedMedia) return;
 
-    if (selectedMedia.mediaType === "african") {
-      addDownload(
-        selectedMedia.id,
-        selectedMedia.mediaType,
-        selectedMedia.title,
-        selectedMedia.posterPath,
-        selectedMedia.backdropPath,
-        season,
-        episode,
-        epTitle,
-        selectedMedia.youtubeKey
-      );
-      return;
-    }
-
-    // TMDB Movie or TV Series: check for direct HLS stream in Vidora cluster
-    const check = await downloadEngine.checkTmdbStream(
+    addDownload(
       selectedMedia.id,
       selectedMedia.mediaType,
-      season,
-      episode
-    );
-
-    if (check.resolved && check.streamUrl) {
-      addDownload(
-        selectedMedia.id,
-        selectedMedia.mediaType,
-        selectedMedia.title,
-        selectedMedia.posterPath,
-        selectedMedia.backdropPath,
-        season,
-        episode,
-        epTitle,
-        null,
-        check.streamUrl
-      );
-      return;
-    }
-
-    // Not in direct cluster -> open StreamBridgeModal so user can stream or paste URL
-    openStreamBridge({
-      title: selectedMedia.title,
-      tmdbId: selectedMedia.id,
-      type: selectedMedia.mediaType,
+      selectedMedia.title,
+      selectedMedia.posterPath,
+      selectedMedia.backdropPath,
       season,
       episode,
-      posterUrl: selectedMedia.posterPath,
-      backdropUrl: selectedMedia.backdropPath,
-      vidsparkUrl: check.vidsparkUrl,
-    });
+      epTitle,
+      selectedMedia.youtubeKey
+    );
+  };
+
+  const getEpisodeDownloadItem = (seasonNum: number, epNum: number) => {
+    if (!selectedMedia) return undefined;
+    return downloads.find(
+      (d) =>
+        d.mediaId === selectedMedia.id &&
+        d.season === seasonNum &&
+        d.episode === epNum
+    );
+  };
+
+  const seasonEpisodesDownloaded = episodes.filter((ep) => {
+    const item = getEpisodeDownloadItem(selectedSeason, ep.episode_number);
+    return item?.status === "completed";
+  }).length;
+
+  const seasonEpisodesInProgress = episodes.filter((ep) => {
+    const item = getEpisodeDownloadItem(selectedSeason, ep.episode_number);
+    return item?.status === "downloading" || item?.status === "queued";
+  }).length;
+
+  const isSeasonFullyDownloaded =
+    episodes.length > 0 && seasonEpisodesDownloaded === episodes.length;
+
+  const isSeasonDownloading = seasonEpisodesInProgress > 0;
+
+  const handleDownloadSeason = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!selectedMedia || episodes.length === 0) return;
+    downloadSeason(
+      selectedMedia.id,
+      selectedMedia.mediaType === "african" ? "african" : "series",
+      selectedMedia.title,
+      selectedMedia.posterPath,
+      selectedMedia.backdropPath,
+      selectedSeason,
+      episodes.map((ep) => ({
+        id: ep.id,
+        episode_number: ep.episode_number,
+        name: ep.name,
+        season_number: ep.season_number,
+      }))
+    );
   };
 
   return (
@@ -328,22 +341,65 @@ export const DetailModal: React.FC = () => {
           {/* TV Shows: Seasons & Episodes Rails */}
           {selectedMedia.mediaType === "series" && seasons.length > 0 && (
             <div className="pt-4 border-t border-zinc-800 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white">Episodes</h3>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-lg font-bold text-white">Episodes</h3>
+                  {episodes.length > 0 && (
+                    <span className="text-xs text-zinc-400">
+                      ({episodes.length} Total)
+                    </span>
+                  )}
+                </div>
 
-                {/* Season Dropdown */}
-                <select
-                  value={selectedSeason}
-                  onChange={(e) => setSelectedSeason(Number(e.target.value))}
-                  className="bg-zinc-800 border border-zinc-700 text-white text-xs px-3 py-1.5 rounded outline-none cursor-pointer"
-                >
-                  {seasons.map((s) => (
-                    <option key={s.id} value={s.season_number}>
-                      {s.name || `Season ${s.season_number}`} (
-                      {s.episode_count} eps)
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center space-x-2">
+                  {/* Download Season Button */}
+                  {episodes.length > 0 && (
+                    isSeasonFullyDownloaded ? (
+                      <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-green-950/60 border border-green-800/80 text-green-400 text-xs font-semibold rounded-lg">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Season {selectedSeason} Downloaded</span>
+                      </div>
+                    ) : isSeasonDownloading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-red-950/60 border border-red-800/80 text-red-300 text-xs font-semibold rounded-lg">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" />
+                          <span>
+                            Season {selectedSeason} ({seasonEpisodesDownloaded + seasonEpisodesInProgress}/{episodes.length})
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => cancelSeasonDownloads(selectedMedia.id, selectedSeason)}
+                          className="text-[11px] text-zinc-400 hover:text-white px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 transition-colors cursor-pointer"
+                          title="Cancel season download queue"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleDownloadSeason}
+                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-md"
+                        title={`Download all episodes of Season ${selectedSeason} in succession`}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Download Season {selectedSeason}</span>
+                      </button>
+                    )
+                  )}
+
+                  {/* Season Dropdown */}
+                  <select
+                    value={selectedSeason}
+                    onChange={(e) => setSelectedSeason(Number(e.target.value))}
+                    className="bg-zinc-800 border border-zinc-700 text-white text-xs px-3 py-1.5 rounded outline-none cursor-pointer"
+                  >
+                    {seasons.map((s) => (
+                      <option key={s.id} value={s.season_number}>
+                        {s.name || `Season ${s.season_number}`} ({s.episode_count} eps)
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {isLoadingEpisodes ? (
@@ -398,20 +454,73 @@ export const DetailModal: React.FC = () => {
                             {ep.runtime}m
                           </span>
                         )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownload(
-                              ep.season_number,
-                              ep.episode_number,
-                              ep.name
+
+                        {(() => {
+                          const epItem = getEpisodeDownloadItem(ep.season_number, ep.episode_number);
+                          if (epItem?.status === "completed") {
+                            return (
+                              <div
+                                className="flex items-center space-x-1 px-2.5 py-1 bg-green-950/60 border border-green-800/80 rounded-md text-green-400 text-xs font-medium"
+                                title="Downloaded (Ready Offline)"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Downloaded</span>
+                              </div>
                             );
-                          }}
-                          className="p-2 rounded-full hover:bg-zinc-700 text-zinc-400 hover:text-white"
-                          title="Download episode"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
+                          }
+                          if (epItem?.status === "downloading") {
+                            return (
+                              <div
+                                className="flex items-center space-x-1.5 px-2.5 py-1 bg-red-950/60 border border-red-800/80 rounded-md text-red-400 text-xs font-bold"
+                                title={`Downloading: ${epItem.progress}%`}
+                              >
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" />
+                                <span>{epItem.progress}%</span>
+                              </div>
+                            );
+                          }
+                          if (epItem?.status === "queued") {
+                            return (
+                              <div
+                                className="flex items-center space-x-1 px-2.5 py-1 bg-amber-950/40 border border-amber-800/60 rounded-md text-amber-400 text-xs font-medium"
+                                title="Queued (Will download in succession)"
+                              >
+                                <Clock className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Queued</span>
+                              </div>
+                            );
+                          }
+                          if (epItem?.status === "failed") {
+                            return (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  retryDownload(epItem.id);
+                                }}
+                                className="p-1.5 rounded-full hover:bg-zinc-700 text-amber-400 hover:text-white transition-colors cursor-pointer"
+                                title="Retry episode download"
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                              </button>
+                            );
+                          }
+                          return (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownload(
+                                  ep.season_number,
+                                  ep.episode_number,
+                                  ep.name
+                                );
+                              }}
+                              className="p-2 rounded-full hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                              title="Download episode"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                          );
+                        })()}
                       </div>
                     </div>
                   ))}

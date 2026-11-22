@@ -2,7 +2,13 @@ import { create } from "zustand";
 import { DownloadItem } from "../types/streaming";
 import { downloadEngine, DownloadProgressInfo } from "../services/downloadEngine";
 import { SEED_AFRICAN_MOVIES } from "../services/africanSeed";
-import { useUIStore } from "./useUIStore";
+
+export interface SeasonEpisodeInput {
+  id: number;
+  episode_number: number;
+  name: string;
+  season_number: number;
+}
 
 interface DownloadState {
   downloads: DownloadItem[];
@@ -18,10 +24,21 @@ interface DownloadState {
     youtubeKey?: string | null,
     customSourceUrl?: string | null
   ) => Promise<void>;
+  downloadSeason: (
+    mediaId: number,
+    mediaType: "series" | "african",
+    title: string,
+    posterUrl: string | null,
+    backdropUrl: string | null,
+    seasonNumber: number,
+    episodes: SeasonEpisodeInput[]
+  ) => Promise<void>;
+  cancelSeasonDownloads: (mediaId: number, seasonNumber: number) => void;
   removeDownload: (id: string) => void;
   retryDownload: (id: string) => Promise<void>;
   clearFailedDownloads: () => void;
   updateItem: (id: string, updates: Partial<DownloadItem>) => void;
+  processQueue: () => Promise<void>;
 }
 
 const STORAGE_KEY = "flexnit_downloads_v2";
@@ -32,16 +49,12 @@ const loadDownloads = (): DownloadItem[] => {
     if (!raw) return [];
     const items: DownloadItem[] = JSON.parse(raw);
     return items.map((item) => {
-      // Purge raw embed webpages if stored from prior runs
-      if (
-        item.downloadUrl &&
-        (item.downloadUrl.includes("vidspark.to/movie/") || item.downloadUrl.includes("vidspark.to/tv/"))
-      ) {
+      // If app closed while downloading, reset to queued so it can resume sequentially
+      if (item.status === "downloading") {
         return {
           ...item,
-          downloadUrl: "",
-          status: "failed",
-          error: "Stream Bridge Required. Open Stream Bridge to stream or provide stream URL.",
+          status: "queued" as const,
+          phase: "Queued (Resume)",
         };
       }
       return item;
@@ -58,6 +71,8 @@ const saveDownloads = (items: DownloadItem[]) => {
     // Ignore
   }
 };
+
+let isProcessingQueue = false;
 
 export const useDownloadStore = create<DownloadState>((set, get) => ({
   downloads: loadDownloads(),
@@ -86,7 +101,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
 
     const cleanTitle = episodeTitle ? `${title} - ${episodeTitle}` : title;
 
-    // Self-healing: if African movie and youtubeKey is missing or invalid, resolve from seed catalog
+    // Self-healing: if African movie and youtubeKey is missing, resolve from seed
     let resolvedYoutubeKey = youtubeKey;
     if (mediaType === "african" && (!resolvedYoutubeKey || !/^[a-zA-Z0-9_-]{11}$/.test(resolvedYoutubeKey.trim()))) {
       const match = SEED_AFRICAN_MOVIES.find(
@@ -113,11 +128,11 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
       episodeTitle,
       youtubeKey: resolvedYoutubeKey,
       downloadUrl: customSourceUrl || "",
-      progress: 1,
+      progress: 0,
       status: "queued",
       downloadedAt: Date.now(),
       sizeFormatted: "1080p Full HD",
-      phase: customSourceUrl ? "Starting stream download..." : "Resolving media stream...",
+      phase: "Queued in succession...",
     };
 
     // Filter out previous failed instance of same ID if any
@@ -126,27 +141,143 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
     saveDownloads(updated);
     set({ downloads: updated });
 
+    // Process queue in succession
+    get().processQueue();
+  },
+
+  downloadSeason: async (
+    mediaId,
+    mediaType,
+    title,
+    posterUrl,
+    backdropUrl,
+    seasonNumber,
+    episodes
+  ) => {
+    const currentDownloads = get().downloads;
+    const newItems: DownloadItem[] = [];
+
+    episodes.forEach((ep, index) => {
+      const id = `tv_${mediaId}_s${seasonNumber}_e${ep.episode_number}`;
+      const existing = currentDownloads.find((d) => d.id === id);
+      // Skip if already completed or currently downloading/queued
+      if (existing && existing.status === "completed") {
+        return;
+      }
+      if (existing && (existing.status === "downloading" || existing.status === "queued")) {
+        return;
+      }
+
+      const cleanTitle = ep.name
+        ? `${title} - S${seasonNumber}:E${ep.episode_number} ${ep.name}`
+        : `${title} - S${seasonNumber}:E${ep.episode_number}`;
+
+      const item: DownloadItem = {
+        id,
+        mediaId,
+        mediaType,
+        title: cleanTitle,
+        posterUrl,
+        backdropUrl,
+        season: seasonNumber,
+        episode: ep.episode_number,
+        episodeTitle: ep.name,
+        downloadUrl: "",
+        progress: 0,
+        status: "queued",
+        // Stagger timestamp slightly to preserve strict FIFO episode order (Ep 1 before Ep 2, etc.)
+        downloadedAt: Date.now() + index * 10,
+        sizeFormatted: "1080p Full HD",
+        phase: `Queued (#${index + 1})`,
+      };
+      newItems.push(item);
+    });
+
+    if (newItems.length === 0) return;
+
+    // Filter out previous failed instances of these IDs
+    const newIds = new Set(newItems.map((n) => n.id));
+    const filtered = currentDownloads.filter((d) => !newIds.has(d.id));
+    const updated = [...filtered, ...newItems];
+    saveDownloads(updated);
+    set({ downloads: updated });
+
+    // Start sequential processing
+    get().processQueue();
+  },
+
+  cancelSeasonDownloads: (mediaId: number, seasonNumber: number) => {
+    const seasonItems = get().downloads.filter(
+      (d) =>
+        d.mediaId === mediaId &&
+        d.season === seasonNumber &&
+        (d.status === "queued" || d.status === "downloading")
+    );
+
+    seasonItems.forEach((item) => {
+      if (item.status === "downloading") {
+        downloadEngine.cancelDownload(item.id);
+      }
+    });
+
+    const cancelledIds = new Set(seasonItems.map((i) => i.id));
+    const updated = get().downloads.filter((d) => !cancelledIds.has(d.id));
+    saveDownloads(updated);
+    set({ downloads: updated });
+
+    // Process next queued download if any
+    setTimeout(() => {
+      get().processQueue();
+    }, 200);
+  },
+
+  processQueue: async () => {
+    if (isProcessingQueue) return;
+
+    const currentDownloads = get().downloads;
+
+    // Check if any download is currently actively running (Concurrency limit = 1)
+    const activeItem = currentDownloads.find((d) => d.status === "downloading");
+    if (activeItem) {
+      return;
+    }
+
+    // Find the next queued item (lowest downloadedAt timestamp for FIFO)
+    const queuedItems = currentDownloads
+      .filter((d) => d.status === "queued")
+      .sort((a, b) => a.downloadedAt - b.downloadedAt);
+
+    if (queuedItems.length === 0) return;
+
+    const nextItem = queuedItems[0];
+    isProcessingQueue = true;
+
     try {
+      get().updateItem(nextItem.id, {
+        status: "downloading",
+        phase: nextItem.downloadUrl ? "Starting stream download..." : "Resolving media stream...",
+      });
+
       // 1. Resolve source stream (.m3u8 or YouTube URL)
       const sourceUrl =
-        customSourceUrl ||
+        nextItem.downloadUrl ||
         (await downloadEngine.resolveSourceUrl(
-          mediaType,
-          mediaId,
-          season,
-          episode,
-          resolvedYoutubeKey,
-          cleanTitle
+          nextItem.mediaType,
+          nextItem.mediaId,
+          nextItem.season,
+          nextItem.episode,
+          nextItem.youtubeKey,
+          nextItem.title
         ));
 
-      get().updateItem(id, { downloadUrl: sourceUrl, phase: "Starting download..." });
+      get().updateItem(nextItem.id, { downloadUrl: sourceUrl, phase: "Starting download..." });
 
-      // 2. Start real download pipeline (native sidecar on desktop, StreamLink on web)
+      // 2. Start download pipeline (native yt-dlp for YouTube, StreamLink microservice for TMDB)
       const jobId = await downloadEngine.startDownload(
-        id,
+        nextItem.id,
         sourceUrl,
         (info: DownloadProgressInfo) => {
-          get().updateItem(id, {
+          get().updateItem(nextItem.id, {
             progress: info.progress,
             status: info.status,
             phase: info.phase,
@@ -156,19 +287,32 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
             filePath: info.filePath,
             error: info.error,
           });
+
+          // When this download finishes or fails, trigger next in succession
+          if (info.status === "completed" || info.status === "failed") {
+            setTimeout(() => {
+              get().processQueue();
+            }, 300);
+          }
         },
-        cleanTitle
+        nextItem.title
       );
 
       if (jobId) {
-        get().updateItem(id, { jobId });
+        get().updateItem(nextItem.id, { jobId });
       }
     } catch (err: any) {
-      get().updateItem(id, {
+      get().updateItem(nextItem.id, {
         status: "failed",
         phase: "Unavailable",
         error: err.message || "Failed to resolve stream",
       });
+      // Fail-forward: trigger next queued episode automatically
+      setTimeout(() => {
+        get().processQueue();
+      }, 500);
+    } finally {
+      isProcessingQueue = false;
     }
   },
 
@@ -176,69 +320,15 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
     const item = get().downloads.find((d) => d.id === id);
     if (!item) return;
 
-    // For TMDB movies and TV series, verify if direct stream is available or open StreamBridge
-    if (item.mediaType === "movie" || item.mediaType === "series") {
-      const check = await downloadEngine.checkTmdbStream(
-        item.mediaId,
-        item.mediaType,
-        item.season,
-        item.episode
-      );
-      if (check.resolved && check.streamUrl) {
-        await get().addDownload(
-          item.mediaId,
-          item.mediaType,
-          item.title,
-          item.posterUrl,
-          item.backdropUrl,
-          item.season,
-          item.episode,
-          item.episodeTitle,
-          null,
-          check.streamUrl
-        );
-        return;
-      }
+    // Reset status to queued and trigger queue
+    get().updateItem(id, {
+      status: "queued",
+      progress: 0,
+      phase: "Queued (Retry)",
+      error: undefined,
+    });
 
-      // If not in direct cluster, open StreamBridgeModal so user can stream or paste stream URL
-      useUIStore.getState().openStreamBridge({
-        title: item.title,
-        tmdbId: item.mediaId,
-        type: item.mediaType,
-        season: item.season,
-        episode: item.episode,
-        posterUrl: item.posterUrl,
-        backdropUrl: item.backdropUrl,
-        vidsparkUrl: check.vidsparkUrl,
-      });
-      return;
-    }
-
-    let youtubeKey = item.youtubeKey;
-    if (item.mediaType === "african" && (!youtubeKey || !/^[a-zA-Z0-9_-]{11}$/.test(youtubeKey.trim()))) {
-      const match = SEED_AFRICAN_MOVIES.find(
-        (m) =>
-          m.id === item.mediaId ||
-          m.title.toLowerCase().trim() === item.title.toLowerCase().trim() ||
-          m.title.toLowerCase().includes(item.title.toLowerCase().trim()) ||
-          item.title.toLowerCase().includes(m.title.toLowerCase().trim())
-      );
-      if (match?.youtubeVideoId) {
-        youtubeKey = match.youtubeVideoId;
-      }
-    }
-
-    await get().addDownload(
-      item.mediaId,
-      item.mediaType,
-      item.title,
-      item.posterUrl,
-      item.backdropUrl,
-      item.season,
-      item.episode,
-      item.episodeTitle,
-      youtubeKey
-    );
+    get().processQueue();
   },
 
   clearFailedDownloads: () => {
@@ -259,9 +349,24 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
   },
 
   removeDownload: (id: string) => {
-    downloadEngine.cancelDownload(id);
+    const item = get().downloads.find((d) => d.id === id);
+    if (item && item.status === "downloading") {
+      downloadEngine.cancelDownload(id);
+    }
     const updated = get().downloads.filter((d) => d.id !== id);
     saveDownloads(updated);
     set({ downloads: updated });
+
+    // Pick up next queued item
+    setTimeout(() => {
+      get().processQueue();
+    }, 200);
   },
 }));
+
+// Automatically resume any queued downloads when store is first loaded
+if (typeof window !== "undefined") {
+  setTimeout(() => {
+    useDownloadStore.getState().processQueue();
+  }, 1000);
+}
