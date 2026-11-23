@@ -18,6 +18,7 @@ import { tmdbService, getBackdropUrl, getPosterUrl } from "../../services/tmdb";
 import { useUIStore } from "../../stores/useUIStore";
 import { useMyListStore } from "../../stores/useMyListStore";
 import { useDownloadStore } from "../../stores/useDownloadStore";
+import { useHistoryStore } from "../../stores/useHistoryStore";
 
 export const DetailModal: React.FC = () => {
   const { selectedMedia, closeDetailModal, openPlayer } = useUIStore();
@@ -127,9 +128,18 @@ export const DetailModal: React.FC = () => {
     Math.max(65, Math.round(selectedMedia.voteAverage * 10))
   );
 
-  const handlePlay = (season = 1, episode = 1) => {
+  const { getHistoryItem } = useHistoryStore();
+  const historyItem = selectedMedia ? getHistoryItem(selectedMedia.id) : undefined;
+  const hasResumeProgress = Boolean(
+    historyItem &&
+    historyItem.currentTime &&
+    historyItem.currentTime > 5 &&
+    (!historyItem.duration || historyItem.currentTime / historyItem.duration < 0.95)
+  );
+
+  const handlePlay = (season = 1, episode = 1, startTime?: number) => {
     if (!selectedMedia) return;
-    openPlayer({ media: selectedMedia, season, episode });
+    openPlayer({ media: selectedMedia, season, episode, startTime });
   };
 
   const handleDownload = (season?: number, episode?: number, epTitle?: string) => {
@@ -232,11 +242,27 @@ export const DetailModal: React.FC = () => {
           <div className="absolute bottom-6 left-8 right-8 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => handlePlay(selectedSeason, 1)}
+                onClick={() => {
+                  if (hasResumeProgress && historyItem) {
+                    handlePlay(
+                      historyItem.season ?? selectedSeason,
+                      historyItem.episode ?? 1,
+                      historyItem.currentTime
+                    );
+                  } else {
+                    handlePlay(selectedSeason, 1);
+                  }
+                }}
                 className="flex items-center space-x-2 px-6 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-sm rounded shadow-lg transition-transform hover:scale-105 cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-black" />
-                <span>Play</span>
+                <span>
+                  {hasResumeProgress
+                    ? selectedMedia.mediaType === "series"
+                      ? `Resume S${historyItem?.season ?? selectedSeason}:E${historyItem?.episode ?? 1}`
+                      : "Resume"
+                    : "Play"}
+                </span>
               </button>
 
               <button
@@ -412,9 +438,17 @@ export const DetailModal: React.FC = () => {
                   {episodes.map((ep) => (
                     <div
                       key={ep.id}
-                      onClick={() =>
-                        handlePlay(ep.season_number, ep.episode_number)
-                      }
+                      onClick={() => {
+                        const isThisEp =
+                          historyItem &&
+                          historyItem.season === ep.season_number &&
+                          historyItem.episode === ep.episode_number;
+                        handlePlay(
+                          ep.season_number,
+                          ep.episode_number,
+                          isThisEp ? historyItem.currentTime : undefined
+                        );
+                      }}
                       className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/60 hover:bg-zinc-800/90 border border-zinc-800/80 cursor-pointer group transition-colors"
                     >
                       <div className="flex items-center space-x-4">

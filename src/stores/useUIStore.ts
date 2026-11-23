@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { UnifiedMedia } from "../types/movie";
+import { useHistoryStore } from "./useHistoryStore";
 
 export type NavTab =
   | "home"
@@ -21,6 +22,7 @@ export interface PlayerState {
   totalSeasons?: number;
   totalEpisodesInSeason?: number;
   episodeTitle?: string;
+  startTime?: number; // Resume timestamp in seconds
 }
 
 interface UIState {
@@ -60,8 +62,36 @@ export const useUIStore = create<UIState>((set) => ({
   openPlayer: (player) =>
     set((state) => {
       if (!player || !player.media) return state;
+
+      let resolvedPlayer = { ...player };
+      try {
+        const historyItem = useHistoryStore.getState().getHistoryItem(player.media.id);
+        if (historyItem) {
+          if (resolvedPlayer.season === undefined && historyItem.season) {
+            resolvedPlayer.season = historyItem.season;
+          }
+          if (resolvedPlayer.episode === undefined && historyItem.episode) {
+            resolvedPlayer.episode = historyItem.episode;
+          }
+          if (
+            resolvedPlayer.startTime === undefined &&
+            historyItem.currentTime &&
+            historyItem.currentTime > 5
+          ) {
+            const isNearEnd =
+              historyItem.duration &&
+              historyItem.currentTime / historyItem.duration > 0.95;
+            if (!isNearEnd) {
+              resolvedPlayer.startTime = Math.floor(historyItem.currentTime);
+            }
+          }
+        }
+      } catch {
+        // Fallback safely
+      }
+
       return {
-        activePlayer: player,
+        activePlayer: resolvedPlayer,
         previousDetailMedia: state.selectedMedia || state.previousDetailMedia || player.media,
         selectedMedia: null,
       };

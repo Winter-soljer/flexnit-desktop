@@ -5,6 +5,7 @@ import { getBackdropUrl } from "../../services/tmdb";
 import { tmdbService } from "../../services/tmdb";
 import { useUIStore } from "../../stores/useUIStore";
 import { useMyListStore } from "../../stores/useMyListStore";
+import { useHistoryStore } from "../../stores/useHistoryStore";
 
 interface HeroBannerProps {
   movie: Movie | null;
@@ -67,6 +68,14 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ movie }) => {
   const backdrop = getBackdropUrl(movie.backdrop_path);
   const matchScore = Math.min(99, Math.max(70, Math.round(movie.vote_average * 10)));
 
+  const historyItem = useHistoryStore((s) => s.getHistoryItem(movie.id));
+  const hasResumeProgress = Boolean(
+    historyItem &&
+    historyItem.currentTime &&
+    historyItem.currentTime > 5 &&
+    (!historyItem.duration || historyItem.currentTime / historyItem.duration < 0.95)
+  );
+
   return (
     <div className="relative h-[80vh] w-full select-none overflow-hidden">
       {/* Background Image / Video Player */}
@@ -127,11 +136,28 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ movie }) => {
         <div className="flex items-center space-x-3 pt-2">
           {/* Play Button */}
           <button
-            onClick={() => openPlayer({ media: unifiedMedia })}
-            className="flex items-center space-x-2 px-6 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-sm md:text-base rounded transition-all transform hover:scale-105 shadow-lg"
+            onClick={() => {
+              if (hasResumeProgress && historyItem) {
+                openPlayer({
+                  media: unifiedMedia,
+                  season: historyItem.season,
+                  episode: historyItem.episode,
+                  startTime: historyItem.currentTime,
+                });
+              } else {
+                openPlayer({ media: unifiedMedia });
+              }
+            }}
+            className="flex items-center space-x-2 px-6 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-sm md:text-base rounded transition-all transform hover:scale-105 shadow-lg cursor-pointer"
           >
             <Play className="w-5 h-5 fill-black" />
-            <span>Play</span>
+            <span>
+              {hasResumeProgress
+                ? unifiedMedia.mediaType === "series"
+                  ? `Resume S${historyItem?.season ?? 1}:E${historyItem?.episode ?? 1}`
+                  : "Resume"
+                : "Play"}
+            </span>
           </button>
 
           {/* More Info Button */}

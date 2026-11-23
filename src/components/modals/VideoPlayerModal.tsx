@@ -31,31 +31,57 @@ export const VideoPlayerModal: React.FC = () => {
   const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
   const [showSkipIntroToast, setShowSkipIntroToast] = useState(false);
   const [streamStartTime, setStreamStartTime] = useState<number | null>(null);
+  const [currentPlaybackTime, setCurrentPlaybackTime] = useState<number>(0);
+  const [mediaDuration, setMediaDuration] = useState<number>(0);
+  const [iframeNonce, setIframeNonce] = useState<number>(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const season = activePlayer?.season ?? 1;
   const episode = activePlayer?.episode ?? 1;
   const isSeries = activePlayer?.media?.mediaType === "series";
 
-  // Reset countdown & local states when activePlayer changes
+  // Reset countdown & local states when activePlayer changes (resuming from startTime)
   useEffect(() => {
     setShowCountdown(false);
     setCountdownSeconds(null);
-    setStreamStartTime(null);
-  }, [activePlayer?.media?.id, activePlayer?.season, activePlayer?.episode]);
+    const resumeTime = activePlayer?.startTime;
+    if (resumeTime && resumeTime > 5) {
+      setStreamStartTime(Math.floor(resumeTime));
+      setCurrentPlaybackTime(Math.floor(resumeTime));
+    } else {
+      setStreamStartTime(null);
+      setCurrentPlaybackTime(0);
+    }
+  }, [
+    activePlayer?.media?.id,
+    activePlayer?.season,
+    activePlayer?.episode,
+    activePlayer?.startTime,
+  ]);
 
-  // Record to watch history
+  // Initial record to watch history
   useEffect(() => {
     if (activePlayer && activePlayer.media) {
       addToHistory(
         activePlayer.media,
-        25,
+        activePlayer.startTime && mediaDuration > 0
+          ? Math.round((activePlayer.startTime / mediaDuration) * 100)
+          : 15,
         activePlayer.season,
-        activePlayer.episode
+        activePlayer.episode,
+        activePlayer.startTime ?? 0,
+        mediaDuration
       );
     }
-  }, [activePlayer?.media?.id, activePlayer?.season, activePlayer?.episode, addToHistory]);
+  }, [
+    activePlayer?.media?.id,
+    activePlayer?.season,
+    activePlayer?.episode,
+    activePlayer?.startTime,
+    addToHistory,
+  ]);
 
   // Load seasons and episodes when a series is active
   useEffect(() => {
@@ -163,20 +189,51 @@ export const VideoPlayerModal: React.FC = () => {
     return () => clearTimeout(timer);
   }, [showCountdown, countdownSeconds, nextTarget, autoplayNext]);
 
-  // Listen for embed postMessage end events (e.g. VidLink, JWPlayer)
+  // Listen for embed postMessage playback & end events (e.g. VidLink, JWPlayer)
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       const data = e.data;
       if (!data) return;
 
+      // Extract playback telemetry
+      let currentTimeVal: number | undefined;
+      let durationVal: number | undefined;
+
+      if (data.type === "MEDIA_DATA" && data.data) {
+        currentTimeVal = data.data.currentTime ?? data.data.watched_seconds;
+        durationVal = data.data.duration ?? data.data.duration_seconds;
+      } else if (data.type === "PLAYER_EVENT" && data.data) {
+        currentTimeVal = data.data.currentTime;
+        durationVal = data.data.duration;
+      }
+
+      if (typeof currentTimeVal === "number" && !isNaN(currentTimeVal) && currentTimeVal > 0) {
+        setCurrentPlaybackTime(currentTimeVal);
+        if (typeof durationVal === "number" && durationVal > 0) {
+          setMediaDuration(durationVal);
+        }
+
+        if (activePlayer?.media) {
+          const pct =
+            durationVal && durationVal > 0
+              ? Math.round((currentTimeVal / durationVal) * 100)
+              : 25;
+          addToHistory(
+            activePlayer.media,
+            pct,
+            activePlayer.season,
+            activePlayer.episode,
+            currentTimeVal,
+            durationVal
+          );
+        }
+      }
+
       const isEnded =
         data.type === "ENDED" ||
         data.event === "ended" ||
         (data.type === "PLAYER_EVENT" && data.data?.event === "ended") ||
-        (data.type === "MEDIA_DATA" &&
-          data.data?.currentTime &&
-          data.data?.duration &&
-          data.data.duration - data.data.currentTime < 2);
+        (currentTimeVal && durationVal && durationVal - currentTimeVal < 2);
 
       if (isEnded && isSeries && nextTarget) {
         triggerAutoNext();
@@ -185,7 +242,14 @@ export const VideoPlayerModal: React.FC = () => {
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [isSeries, nextTarget]);
+  }, [
+    isSeries,
+    nextTarget,
+    activePlayer?.media,
+    activePlayer?.season,
+    activePlayer?.episode,
+    addToHistory,
+  ]);
 
   // ALL HOOKS ARE COMPLETE - Safe to check activePlayer now!
   if (!activePlayer || !activePlayer.media) return null;
@@ -231,27 +295,59 @@ export const VideoPlayerModal: React.FC = () => {
       activeServerId
     );
     if (streamStartTime && activeServerId === "vidlink") {
-      url += `&startAt=${streamStartTime}`;
+      url += `&startAtNew=${streamStartTime}&startAt=${streamStartTime}`;
     }
     streamUrl = url;
   } else {
     let url = streamingService.getMovieStreamUrl(media.id, activeServerId);
     if (streamStartTime && activeServerId === "vidlink") {
-      url += `&startAt=${streamStartTime}`;
+      url += `&startAtNew=${streamStartTime}&startAt=${streamStartTime}`;
     }
     streamUrl = url;
   }
 
-  // Skip Intro handler: seeks forward +85s (or jumps to 85s if near start)
+  // Skip Intro handler: seeks forward +85s (or jumps past intro)
   const handleSkipIntro = () => {
+    const baseTime = currentPlaybackTime > 0 ? currentPlaybackTime : (streamStartTime || 0);
+    const targetTime = Math.max(Math.floor(baseTime + 85), 85);
+
+    setCurrentPlaybackTime(targetTime);
+    setStreamStartTime(targetTime);
+    setIframeNonce((prev) => prev + 1);
+    setShowSkipIntroToast(true);
+
     if (isLocalVideo && videoRef.current) {
-      const targetTime = Math.max(videoRef.current.currentTime + 85, 85);
       videoRef.current.currentTime = targetTime;
-    } else {
-      setStreamStartTime(85);
-      setShowSkipIntroToast(true);
-      setTimeout(() => setShowSkipIntroToast(false), 3000);
     }
+
+    try {
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage({ type: "SEEK", data: targetTime }, "*");
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: "command", func: "seekTo", args: [targetTime, true] }),
+          "*"
+        );
+      }
+    } catch {
+      // Ignore cross-origin error
+    }
+
+    if (activePlayer?.media) {
+      const pct =
+        mediaDuration > 0
+          ? Math.round((targetTime / mediaDuration) * 100)
+          : 25;
+      addToHistory(
+        activePlayer.media,
+        pct,
+        season,
+        episode,
+        targetTime,
+        mediaDuration
+      );
+    }
+
+    setTimeout(() => setShowSkipIntroToast(false), 3000);
   };
 
   const handleDownload = () => {
@@ -362,6 +458,21 @@ export const VideoPlayerModal: React.FC = () => {
             src={streamUrl}
             controls
             autoPlay
+            onLoadedMetadata={(e) => {
+              if (streamStartTime && streamStartTime > 0) {
+                e.currentTarget.currentTime = streamStartTime;
+              }
+            }}
+            onTimeUpdate={(e) => {
+              const cur = e.currentTarget.currentTime;
+              const dur = e.currentTarget.duration;
+              setCurrentPlaybackTime(cur);
+              if (dur > 0) setMediaDuration(dur);
+              if (activePlayer?.media) {
+                const pct = dur > 0 ? Math.round((cur / dur) * 100) : 25;
+                addToHistory(activePlayer.media, pct, season, episode, cur, dur);
+              }
+            }}
             onEnded={() => {
               if (isSeries && nextTarget) {
                 triggerAutoNext();
@@ -371,7 +482,8 @@ export const VideoPlayerModal: React.FC = () => {
           />
         ) : (
           <iframe
-            key={streamUrl}
+            ref={iframeRef}
+            key={`${streamUrl}_${iframeNonce}`}
             src={streamUrl}
             title={media.title}
             className="w-full h-full border-none"
@@ -394,7 +506,12 @@ export const VideoPlayerModal: React.FC = () => {
         {showSkipIntroToast && (
           <div className="absolute top-6 z-40 bg-zinc-900/95 border border-zinc-700 text-white text-xs px-4 py-2 rounded-lg shadow-xl backdrop-blur-sm flex items-center space-x-2 animate-in fade-in slide-in-from-top-2">
             <FastForward className="w-4 h-4 text-red-500" />
-            <span>Skipped ahead 85 seconds</span>
+            <span>
+              Skipped ahead to{" "}
+              {Math.floor(currentPlaybackTime / 60)}:
+              {String(Math.floor(currentPlaybackTime % 60)).padStart(2, "0")}{" "}
+              (+85s)
+            </span>
           </div>
         )}
 

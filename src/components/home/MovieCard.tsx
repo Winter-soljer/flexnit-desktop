@@ -5,6 +5,7 @@ import { getBackdropUrl, getPosterUrl } from "../../services/tmdb";
 import { useMyListStore } from "../../stores/useMyListStore";
 import { useDownloadStore } from "../../stores/useDownloadStore";
 import { useUIStore } from "../../stores/useUIStore";
+import { useHistoryStore } from "../../stores/useHistoryStore";
 
 interface MovieCardProps {
   media: UnifiedMedia;
@@ -25,6 +26,14 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   const { addDownload, downloads } = useDownloadStore();
   const { openDetailModal, openPlayer } = useUIStore();
 
+  const { getHistoryItem } = useHistoryStore();
+  const historyItem = getHistoryItem(media.id);
+  const hasResume = Boolean(
+    historyItem &&
+    historyItem.progressPercent > 2 &&
+    historyItem.progressPercent < 95
+  );
+
   const isSaved = isInList(media.id);
   const backdrop =
     getBackdropUrl(media.backdropPath) ||
@@ -41,7 +50,12 @@ export const MovieCard: React.FC<MovieCardProps> = ({
 
   const handlePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
-    openPlayer({ media });
+    openPlayer({
+      media,
+      season: historyItem?.season,
+      episode: historyItem?.episode,
+      startTime: hasResume ? historyItem?.currentTime : undefined,
+    });
   };
 
   const handleToggleList = (e: React.MouseEvent) => {
@@ -91,6 +105,16 @@ export const MovieCard: React.FC<MovieCardProps> = ({
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-zinc-850 p-2 text-center text-xs text-zinc-400">
             {media.title}
+          </div>
+        )}
+
+        {/* Watch Progress Bar (Netflix style) */}
+        {hasResume && historyItem && (
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-zinc-800/90 z-10 overflow-hidden">
+            <div
+              className="bg-red-600 h-full"
+              style={{ width: `${historyItem.progressPercent}%` }}
+            />
           </div>
         )}
 

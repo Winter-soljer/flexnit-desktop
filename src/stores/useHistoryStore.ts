@@ -7,6 +7,8 @@ export interface WatchHistoryItem {
   lastWatchedAt: number;
   season?: number;
   episode?: number;
+  currentTime?: number; // in seconds
+  duration?: number; // in seconds
 }
 
 interface HistoryState {
@@ -15,8 +17,11 @@ interface HistoryState {
     media: UnifiedMedia,
     progressPercent?: number,
     season?: number,
-    episode?: number
+    episode?: number,
+    currentTime?: number,
+    duration?: number
   ) => void;
+  getHistoryItem: (id: number) => WatchHistoryItem | undefined;
   removeFromHistory: (id: number) => void;
   clearHistory: () => void;
 }
@@ -36,26 +41,47 @@ const saveHistory = (items: WatchHistoryItem[]) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   } catch {
-    // Ignore
+    // Ignore storage quota
   }
 };
 
 export const useHistoryStore = create<HistoryState>((set, get) => ({
   history: loadHistory(),
 
-  addToHistory: (media, progressPercent = 10, season, episode) => {
+  addToHistory: (
+    media,
+    progressPercent = 10,
+    season,
+    episode,
+    currentTime,
+    duration
+  ) => {
     const { history } = get();
+    const existing = history.find((h) => h.media.id === media.id);
     const filtered = history.filter((h) => h.media.id !== media.id);
+
+    const calculatedPercent =
+      currentTime !== undefined && duration && duration > 0
+        ? Math.min(100, Math.max(0, Math.round((currentTime / duration) * 100)))
+        : progressPercent;
+
     const item: WatchHistoryItem = {
       media,
-      progressPercent,
+      progressPercent: calculatedPercent,
       lastWatchedAt: Date.now(),
-      season,
-      episode,
+      season: season ?? existing?.season,
+      episode: episode ?? existing?.episode,
+      currentTime: currentTime ?? existing?.currentTime,
+      duration: duration ?? existing?.duration,
     };
-    const updated = [item, ...filtered].slice(0, 20); // Keep last 20
+
+    const updated = [item, ...filtered].slice(0, 30); // Keep last 30
     saveHistory(updated);
     set({ history: updated });
+  },
+
+  getHistoryItem: (id) => {
+    return get().history.find((h) => h.media.id === id);
   },
 
   removeFromHistory: (id) => {
