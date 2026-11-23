@@ -4,7 +4,11 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { SEED_AFRICAN_MOVIES } from "./africanSeed";
 
 const STREAMLINK_LOCAL = "http://127.0.0.1:8000";
-const STREAMLINK_CLOUD = "https://streamlink-pwlo23z5hq-uc.a.run.app";
+const STREAMLINK_HF =
+  typeof window !== "undefined" && localStorage.getItem("flexnit_streamlink_hf_url")
+    ? localStorage.getItem("flexnit_streamlink_hf_url")!
+    : "https://techfisher-streamlink.hf.space";
+const STREAMLINK_CLOUD = "https://streamlink-287510183054.us-central1.run.app";
 const API_KEY = "flexnit-streamlink-secret-2026";
 
 const isTauri = typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
@@ -78,7 +82,7 @@ export class DownloadEngine {
       return this.activeEndpoint;
     }
 
-    // Try local StreamLink service first
+    // 1. Try local StreamLink service first
     try {
       const res = await axios.get(`${STREAMLINK_LOCAL}/health`, { timeout: 1200 });
       if (res.data && res.data.status === "ok") {
@@ -89,7 +93,21 @@ export class DownloadEngine {
       // Local daemon not reachable
     }
 
-    // Fall back to Cloud Run
+    // 2. Try Hugging Face Spaces high-speed instance
+    try {
+      const hfRes = await axios.get(`${STREAMLINK_HF}/health`, {
+        headers: { "X-API-Key": API_KEY },
+        timeout: 2500,
+      });
+      if (hfRes.data && hfRes.data.status === "ok") {
+        this.activeEndpoint = STREAMLINK_HF;
+        return STREAMLINK_HF;
+      }
+    } catch {
+      // HF Space asleep or not configured yet
+    }
+
+    // 3. Fall back to Cloud Run backup
     this.activeEndpoint = STREAMLINK_CLOUD;
     return STREAMLINK_CLOUD;
   }
@@ -249,14 +267,19 @@ export class DownloadEngine {
       sourceUrl.includes("youtu.be") ||
       sourceUrl.startsWith("ytsearch");
 
-    // Native yt-dlp sidecar is specifically used for YouTube/African content (which works locally)
-    if (isTauri && isYouTube) {
+    const isDirectHls =
+      sourceUrl.includes(".m3u8") ||
+      sourceUrl.includes(".mp4") ||
+      sourceUrl.includes("vidora");
+
+    // Native yt-dlp sidecar is used for YouTube and direct HLS streams in desktop mode
+    if (isTauri && (isYouTube || isDirectHls)) {
       this.progressCallbacks.set(downloadId, onProgress);
       try {
         onProgress({
           progress: 1,
           status: "downloading",
-          phase: "Starting native sidecar engine...",
+          phase: "Starting high-speed sidecar engine...",
         });
 
         await invoke("start_native_download", {

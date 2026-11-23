@@ -187,11 +187,28 @@ fn start_native_download(
 
     let mut cmd = Command::new(&yt_dlp_path);
     cmd.arg("-f")
-        .arg("bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b")
+        .arg("bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bestvideo+bestaudio/best")
         .arg("--newline")
         .arg("--no-playlist")
         .arg("--progress")
-        .arg("-o")
+        .arg("--concurrent-fragments")
+        .arg("8")
+        .arg("--retries")
+        .arg("10")
+        .arg("--fragment-retries")
+        .arg("10");
+
+    // Pass CDN anti-hotlinking headers for TMDB/Vidspark HLS streams
+    if !request.source_url.contains("youtube.com") && !request.source_url.contains("youtu.be") {
+        cmd.arg("--referer")
+            .arg("https://vidspark.to/")
+            .arg("--user-agent")
+            .arg("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+            .arg("--add-header")
+            .arg("Origin: https://vidspark.to");
+    }
+
+    cmd.arg("-o")
         .arg(&output_template)
         .arg(&request.source_url);
 
