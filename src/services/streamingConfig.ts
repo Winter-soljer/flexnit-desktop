@@ -6,39 +6,33 @@ export const DEFAULT_STREAM_SOURCES: StreamSource[] = [
     id: "vidlink",
     name: "Server 1 (VidLink - Ultra Fast)",
     movieUrl:
-      "https://vidlink.pro/movie/{id}?autoplay=true&player=jw&controls=false&mute=false&title=true&poster=true&primaryColor=e50914",
+      "https://vidlink.pro/movie/{id}?primaryColor=e50914&autoplay=true",
     tvUrl:
-      "https://vidlink.pro/tv/{id}/{season}/{episode}?autoplay=true&player=jw&controls=false&mute=false&title=true&poster=true&primaryColor=e50914",
+      "https://vidlink.pro/tv/{id}/{season}/{episode}?primaryColor=e50914&autoplay=true&nextbutton=true",
+  },
+  {
+    id: "autoembed",
+    name: "Server 2 (AutoEmbed - Multi-Source)",
+    movieUrl: "https://autoembed.me/movie/tmdb/{id}",
+    tvUrl: "https://autoembed.me/tv/tmdb/{id}-{season}-{episode}",
+  },
+  {
+    id: "vidspark",
+    name: "Server 3 (VidSpark - Fast)",
+    movieUrl: "https://vidspark.to/movie/{id}",
+    tvUrl: "https://vidspark.to/tv/{id}-{season}-{episode}",
   },
   {
     id: "vidsrc",
-    name: "Server 2 (VidSrc - 4K / Multi)",
+    name: "Server 4 (VidSrc - 4K / Multi)",
     movieUrl: "https://vidsrc.to/embed/movie/{id}",
     tvUrl: "https://vidsrc.to/embed/tv/{id}/{season}/{episode}",
   },
   {
     id: "multiembed",
-    name: "Server 3 (MultiEmbed - 10+ Mirrors)",
+    name: "Server 5 (MultiEmbed - Mirrors)",
     movieUrl: "https://multiembed.mov/?video_id={id}&tmdb=1",
     tvUrl: "https://multiembed.mov/?video_id={id}&tmdb=1&s={season}&e={episode}",
-  },
-  {
-    id: "autoembed",
-    name: "Server 4 (AutoEmbed - Failover)",
-    movieUrl: "https://autoembed.co/movie/tmdb/{id}",
-    tvUrl: "https://autoembed.co/tv/tmdb/{id}-{season}-{episode}",
-  },
-  {
-    id: "vidbinge",
-    name: "Server 5 (VidBinge - Clean Player)",
-    movieUrl: "https://vidbinge.dev/embed/movie/{id}",
-    tvUrl: "https://vidbinge.dev/embed/tv/{id}/{season}/{episode}",
-  },
-  {
-    id: "vidspark",
-    name: "Server 6 (VidSpark - Fast)",
-    movieUrl: "https://vidspark.to/movie/{id}",
-    tvUrl: "https://vidspark.to/tv/{id}-{season}-{episode}",
   },
 ];
 

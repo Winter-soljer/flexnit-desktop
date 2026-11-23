@@ -13,11 +13,14 @@ export type NavTab =
   | "notifications"
   | "profile";
 
-interface PlayerState {
+export interface PlayerState {
   media: UnifiedMedia;
   season?: number;
   episode?: number;
   sourceId?: string;
+  totalSeasons?: number;
+  totalEpisodesInSeason?: number;
+  episodeTitle?: string;
 }
 
 interface UIState {
@@ -55,11 +58,14 @@ export const useUIStore = create<UIState>((set) => ({
   closeDetailModal: () => set({ selectedMedia: null, previousDetailMedia: null }),
   // Auto-close detail modal when player opens, saving previous detail media so it re-opens on close
   openPlayer: (player) =>
-    set((state) => ({
-      activePlayer: player,
-      previousDetailMedia: state.selectedMedia || state.previousDetailMedia || player.media,
-      selectedMedia: null,
-    })),
+    set((state) => {
+      if (!player || !player.media) return state;
+      return {
+        activePlayer: player,
+        previousDetailMedia: state.selectedMedia || state.previousDetailMedia || player.media,
+        selectedMedia: null,
+      };
+    }),
   // Re-open detail modal when player is closed
   closePlayer: () =>
     set((state) => ({

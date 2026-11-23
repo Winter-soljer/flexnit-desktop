@@ -128,6 +128,7 @@ export const DetailModal: React.FC = () => {
   );
 
   const handlePlay = (season = 1, episode = 1) => {
+    if (!selectedMedia) return;
     openPlayer({ media: selectedMedia, season, episode });
   };
 
@@ -193,11 +194,11 @@ export const DetailModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm px-4 py-10 md:py-16 flex justify-center items-start"
       onClick={closeDetailModal}
     >
       <div
-        className="relative w-full max-w-4xl bg-[#181818] rounded-xl overflow-hidden shadow-2xl shadow-black border border-zinc-700/80 my-8 text-white animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-4xl bg-[#181818] rounded-xl overflow-hidden shadow-2xl shadow-black border border-zinc-700/80 mb-16 text-white animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
@@ -231,8 +232,8 @@ export const DetailModal: React.FC = () => {
           <div className="absolute bottom-6 left-8 right-8 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => handlePlay(1, 1)}
-                className="flex items-center space-x-2 px-6 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-sm rounded shadow-lg transition-transform hover:scale-105"
+                onClick={() => handlePlay(selectedSeason, 1)}
+                className="flex items-center space-x-2 px-6 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-sm rounded shadow-lg transition-transform hover:scale-105 cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-black" />
                 <span>Play</span>

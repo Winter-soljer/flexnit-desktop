@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { DownloadItem } from "../types/streaming";
 import { downloadEngine, DownloadProgressInfo } from "../services/downloadEngine";
 import { SEED_AFRICAN_MOVIES } from "../services/africanSeed";
+import { useNotificationStore } from "./useNotificationStore";
 
 export interface SeasonEpisodeInput {
   id: number;
@@ -290,6 +291,21 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
 
           // When this download finishes or fails, trigger next in succession
           if (info.status === "completed" || info.status === "failed") {
+            if (info.status === "completed") {
+              try {
+                useNotificationStore.getState().addDownloadCompleteNotification({
+                  title: nextItem.title,
+                  mediaType: nextItem.mediaType,
+                  mediaId: nextItem.mediaId,
+                  season: nextItem.season,
+                  episode: nextItem.episode,
+                  posterUrl: nextItem.posterUrl,
+                  filePath: info.filePath,
+                });
+              } catch (e) {
+                console.error("Failed to post download notification:", e);
+              }
+            }
             setTimeout(() => {
               get().processQueue();
             }, 300);

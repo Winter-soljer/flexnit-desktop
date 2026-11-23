@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Search, Bell, Download, X, User } from "lucide-react";
+import { Search, Bell, Download, X } from "lucide-react";
 import { FlexnitLogo } from "../common/FlexnitLogo";
 import { useUIStore, NavTab } from "../../stores/useUIStore";
 import { useDownloadStore } from "../../stores/useDownloadStore";
+import { useNotificationStore } from "../../stores/useNotificationStore";
+import { useProfileStore } from "../../stores/useProfileStore";
 
 export const Navbar: React.FC = () => {
   const { activeTab, setActiveTab, searchQuery, setSearchQuery } = useUIStore();
   const { downloads } = useDownloadStore();
+  const { unreadCount } = useNotificationStore();
+  const { profiles, activeProfileId } = useProfileStore();
+
+  const activeProfile =
+    profiles.find((p) => p.id === activeProfileId) || profiles[0];
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -118,13 +125,13 @@ export const Navbar: React.FC = () => {
           )}
         </div>
 
-        {/* Notifications Icon */}
+        {/* Notifications Icon with Dynamic Unread Badge */}
         <button
           onClick={() => {
             setActiveTab("notifications");
             setSearchQuery("");
           }}
-          className={`transition-colors relative p-1.5 rounded hover:bg-white/10 ${
+          className={`transition-colors relative p-1.5 rounded hover:bg-white/10 cursor-pointer ${
             activeTab === "notifications"
               ? "text-red-500 bg-white/5"
               : "text-zinc-200 hover:text-white"
@@ -132,7 +139,11 @@ export const Navbar: React.FC = () => {
           title="Notifications"
         >
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-600 rounded-full" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 bg-[#E50914] text-white text-[9px] min-w-4 h-4 px-1 rounded-full flex items-center justify-center font-bold shadow-sm shadow-black/80 animate-in zoom-in">
+              {unreadCount}
+            </span>
+          )}
         </button>
 
         {/* Downloads Quick Icon with Counter */}
@@ -141,7 +152,7 @@ export const Navbar: React.FC = () => {
             setActiveTab("downloads");
             setSearchQuery("");
           }}
-          className={`transition-colors relative p-1.5 rounded hover:bg-white/10 ${
+          className={`transition-colors relative p-1.5 rounded hover:bg-white/10 cursor-pointer ${
             activeTab === "downloads"
               ? "text-red-500 bg-white/5"
               : "text-zinc-200 hover:text-white"
@@ -165,11 +176,21 @@ export const Navbar: React.FC = () => {
           className={`flex items-center space-x-1.5 cursor-pointer group p-1 rounded transition-all hover:scale-105 ${
             activeTab === "profile" ? "ring-2 ring-white/60 rounded-md bg-white/5" : ""
           }`}
-          title="User Profile"
+          title={`Active Profile: ${activeProfile.name}`}
         >
-          <div className="w-8 h-8 rounded bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow-sm shadow-black/80">
-            <User className="w-5 h-5" />
-          </div>
+          {activeProfile.avatarUrl ? (
+            <img
+              src={activeProfile.avatarUrl}
+              alt={activeProfile.name}
+              className="w-8 h-8 rounded object-cover shadow-sm shadow-black/80 border border-white/20"
+            />
+          ) : (
+            <div
+              className={`w-8 h-8 rounded bg-gradient-to-tr ${activeProfile.avatarColor} flex items-center justify-center text-white font-bold text-xs shadow-sm shadow-black/80 border border-white/10`}
+            >
+              {activeProfile.name.charAt(0)}
+            </div>
+          )}
           <span className="text-[10px] text-zinc-400 group-hover:text-white transition-colors">
             ▼
           </span>

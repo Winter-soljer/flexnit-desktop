@@ -9,6 +9,7 @@ interface ContentRailProps {
   items: UnifiedMedia[];
   isTop10?: boolean;
   isLarge?: boolean;
+  onExploreAll?: () => void;
 }
 
 export const ContentRail: React.FC<ContentRailProps> = ({
@@ -16,6 +17,7 @@ export const ContentRail: React.FC<ContentRailProps> = ({
   items,
   isTop10 = false,
   isLarge = false,
+  onExploreAll,
 }) => {
   const rowRef = useRef<HTMLDivElement>(null);
   const [isMoved, setIsMoved] = useState(false);
@@ -40,12 +42,24 @@ export const ContentRail: React.FC<ContentRailProps> = ({
     <div className="relative group my-2">
       {/* Rail Title */}
       <div className="flex items-center space-x-2 mb-1 px-8 md:px-14">
-        <h2 className="text-lg md:text-xl font-bold text-white tracking-wide group-hover:text-red-500 transition-colors">
+        <h2
+          onClick={onExploreAll}
+          className={`text-lg md:text-xl font-bold text-white tracking-wide transition-colors ${
+            onExploreAll ? "cursor-pointer group-hover:text-red-500" : ""
+          }`}
+        >
           {title}
         </h2>
-        <span className="text-xs text-red-600 opacity-0 group-hover:opacity-100 transition-opacity font-semibold cursor-pointer">
-          Explore All ›
-        </span>
+        {onExploreAll && (
+          <button
+            onClick={onExploreAll}
+            className="text-xs text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity font-semibold cursor-pointer flex items-center gap-0.5 focus:outline-none"
+            title={`Explore All ${title}`}
+          >
+            <span>Explore All</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Left Chevron Button */}
