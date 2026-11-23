@@ -14,10 +14,19 @@ interface HeroBannerProps {
 export const HeroBanner: React.FC<HeroBannerProps> = ({ movie }) => {
   const { openDetailModal, openPlayer } = useUIStore();
   const { isInList, toggleItem } = useMyListStore();
+  const { getHistoryItem } = useHistoryStore();
 
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isPlayingTrailer, setIsPlayingTrailer] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+
+  const historyItem = movie ? getHistoryItem(movie.id) : undefined;
+  const hasResumeProgress = Boolean(
+    historyItem &&
+    historyItem.currentTime &&
+    historyItem.currentTime > 5 &&
+    (!historyItem.duration || historyItem.currentTime / historyItem.duration < 0.95)
+  );
 
   useEffect(() => {
     if (!movie) return;
@@ -67,14 +76,6 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ movie }) => {
   const isSaved = isInList(movie.id);
   const backdrop = getBackdropUrl(movie.backdrop_path);
   const matchScore = Math.min(99, Math.max(70, Math.round(movie.vote_average * 10)));
-
-  const historyItem = useHistoryStore((s) => s.getHistoryItem(movie.id));
-  const hasResumeProgress = Boolean(
-    historyItem &&
-    historyItem.currentTime &&
-    historyItem.currentTime > 5 &&
-    (!historyItem.duration || historyItem.currentTime / historyItem.duration < 0.95)
-  );
 
   return (
     <div className="relative h-[80vh] w-full select-none overflow-hidden">

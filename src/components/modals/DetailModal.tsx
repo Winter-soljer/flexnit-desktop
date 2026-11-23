@@ -23,6 +23,7 @@ import { useHistoryStore } from "../../stores/useHistoryStore";
 export const DetailModal: React.FC = () => {
   const { selectedMedia, closeDetailModal, openPlayer } = useUIStore();
   const { isInList, toggleItem } = useMyListStore();
+  const { getHistoryItem } = useHistoryStore();
   const {
     downloads,
     addDownload,
@@ -128,7 +129,6 @@ export const DetailModal: React.FC = () => {
     Math.max(65, Math.round(selectedMedia.voteAverage * 10))
   );
 
-  const { getHistoryItem } = useHistoryStore();
   const historyItem = selectedMedia ? getHistoryItem(selectedMedia.id) : undefined;
   const hasResumeProgress = Boolean(
     historyItem &&
