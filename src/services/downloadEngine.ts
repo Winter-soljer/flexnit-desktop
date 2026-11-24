@@ -75,14 +75,32 @@ export class DownloadEngine {
   }
 
   /**
-   * Discovers the best StreamLink service endpoint for web fallback
+   * Discovers the best StreamLink service endpoint:
+   * 1. Hugging Face Spaces (Primary high-speed 16-stream cluster)
+   * 2. Local StreamLink daemon (if running on port 8000)
+   * 3. Google Cloud Run (Automatic fallback if Hugging Face is asleep or unavailable)
    */
-  async getEndpoint(preferLocal = true): Promise<string> {
-    if (this.activeEndpoint && preferLocal) {
+  async getEndpoint(preferCached = true): Promise<string> {
+    if (this.activeEndpoint && preferCached) {
       return this.activeEndpoint;
     }
 
-    // 1. Try local StreamLink service first
+    // 1. Try Hugging Face Spaces FIRST as main cloud backend
+    try {
+      const hfRes = await axios.get(`${STREAMLINK_HF}/health`, {
+        headers: { "X-API-Key": API_KEY },
+        timeout: 4000,
+      });
+      if (hfRes.data && (hfRes.data.status === "ok" || typeof hfRes.data === "object")) {
+        this.activeEndpoint = STREAMLINK_HF;
+        console.log("[downloadEngine] Active primary backend: Hugging Face Spaces");
+        return STREAMLINK_HF;
+      }
+    } catch (e) {
+      console.warn("[downloadEngine] Hugging Face backend unreachable, testing fallbacks...", e);
+    }
+
+    // 2. Try local StreamLink daemon if active
     try {
       const res = await axios.get(`${STREAMLINK_LOCAL}/health`, { timeout: 1200 });
       if (res.data && res.data.status === "ok") {
@@ -93,21 +111,8 @@ export class DownloadEngine {
       // Local daemon not reachable
     }
 
-    // 2. Try Hugging Face Spaces high-speed instance
-    try {
-      const hfRes = await axios.get(`${STREAMLINK_HF}/health`, {
-        headers: { "X-API-Key": API_KEY },
-        timeout: 2500,
-      });
-      if (hfRes.data && hfRes.data.status === "ok") {
-        this.activeEndpoint = STREAMLINK_HF;
-        return STREAMLINK_HF;
-      }
-    } catch {
-      // HF Space asleep or not configured yet
-    }
-
-    // 3. Fall back to Cloud Run backup
+    // 3. Fall back to Google Cloud Run ONLY when Hugging Face fails
+    console.log("[downloadEngine] Falling back to Google Cloud Run backup backend");
     this.activeEndpoint = STREAMLINK_CLOUD;
     return STREAMLINK_CLOUD;
   }
@@ -388,10 +393,31 @@ export class DownloadEngine {
         );
       }
 
-      const data = res.data;
-      const jobId = data?.job_id || data?.id;
+      let data = res?.data;
+      let jobId = data?.job_id || data?.id;
+
+      // If primary endpoint (Hugging Face) failed to return a JSON job_id, seamlessly fall back to GCloud Run
+      if ((!data || !jobId) && endpoint !== STREAMLINK_CLOUD) {
+        console.warn("[downloadEngine] Primary endpoint failed to create job, falling back to Google Cloud Run...");
+        endpoint = STREAMLINK_CLOUD;
+        this.activeEndpoint = STREAMLINK_CLOUD;
+        const fallbackRes = await axios.post(
+          `${STREAMLINK_CLOUD}/api/v1/download`,
+          { url: sourceUrl, format: "mp4" },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": API_KEY,
+            },
+            timeout: 20000,
+          }
+        );
+        data = fallbackRes.data;
+        jobId = data?.job_id || data?.id;
+      }
+
       if (!data || !jobId) {
-        throw new Error(data?.message || "Failed to initialize download job");
+        throw new Error(data?.message || "Failed to initialize download job on any backend");
       }
 
       this.pollJob(downloadId, jobId, endpoint, onProgress, title);

@@ -188,16 +188,21 @@ fn start_native_download(
 
     let mut cmd = Command::new(&yt_dlp_path);
     cmd.arg("-f")
-        .arg("bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bestvideo+bestaudio/best")
+        .arg("bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[height<=1080][ext=mp4]/bestvideo+bestaudio/best")
         .arg("--newline")
         .arg("--no-playlist")
         .arg("--progress")
         .arg("--concurrent-fragments")
-        .arg("8")
+        .arg("16") // 16 parallel fragment connections for maximum line speed
+        .arg("--buffer-size")
+        .arg("16M") // 16MB in-memory buffer to prevent disk I/O bottlenecks
+        .arg("--http-chunk-size")
+        .arg("10M")
+        .arg("--hls-use-mpegts") // Direct MPEG-TS writing (faster HLS segment extraction)
         .arg("--retries")
-        .arg("10")
+        .arg("15")
         .arg("--fragment-retries")
-        .arg("10");
+        .arg("15");
 
     // Pass CDN anti-hotlinking headers for TMDB/Vidspark HLS streams
     if !request.source_url.contains("youtube.com") && !request.source_url.contains("youtu.be") {
