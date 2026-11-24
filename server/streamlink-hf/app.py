@@ -281,5 +281,13 @@ with gr.Blocks(title="Flexnit StreamLink High-Speed Service") as demo:
 app = gr.mount_gradio_app(app, demo, path="/ui")
 
 if __name__ == "__main__":
+    import socket
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))
+
+    port = int(os.environ.get("PORT", 7860))
+    # In Hugging Face ZeroGPU spaces, internal supervisor may occupy 7860
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        if s.connect_ex(("127.0.0.1", port)) == 0:
+            port = 7861
+
+    uvicorn.run(app, host="0.0.0.0", port=port)
