@@ -176,6 +176,7 @@ export class DownloadEngine {
 
   /**
    * Checks whether a TMDB title has an indexed direct HLS stream (.m3u8)
+   * In desktop (Tauri) mode, the check runs from the Rust backend to bypass CORS.
    */
   async checkTmdbStream(
     mediaId: number,
@@ -188,7 +189,29 @@ export class DownloadEngine {
       ? `https://vidspark.to/tv/${mediaId}/${season}/${episode}`
       : `https://vidspark.to/movie/${mediaId}`;
 
-    // 1. Check local flexnitweb server if running (port 8080)
+    // ── Desktop mode: use Rust backend to bypass browser CORS restrictions ──
+    if (isTauri) {
+      try {
+        const result: { resolved: boolean; stream_url: string | null; vidspark_url: string; error: string | null } =
+          await invoke("check_tmdb_stream", {
+            mediaId: mediaId,
+            mediaType: mediaType,
+            season: season ?? null,
+            episode: episode ?? null,
+          });
+        console.log("[checkTmdbStream] Rust result:", result);
+        return {
+          resolved: result.resolved,
+          streamUrl: result.stream_url ?? undefined,
+          vidsparkUrl: result.vidspark_url,
+        };
+      } catch (err: any) {
+        console.warn("[checkTmdbStream] Rust invoke failed:", err);
+        // Fall through to web-side check as last resort
+      }
+    }
+
+    // ── Web fallback: check local flexnitweb server if running (port 8080) ──
     try {
       const localUrl = isTv
         ? `http://localhost:8080/api/tmdb/stream/${mediaId}/${season}/${episode}`
@@ -205,7 +228,7 @@ export class DownloadEngine {
       // Local web backend not running or not responding
     }
 
-    // 2. Check Vidora cluster API directly with retries & extended timeout
+    // ── Web fallback: check Vidora cluster API directly (only works if CORS allows) ──
     const VIDSPARK_PLAYER_KEY = "3a67e8866ae1d2bb9e81fe7f73315a56eb3bdf5e3e755c7554c8be6910aa6b13";
     const apiUrl = isTv
       ? `https://vidspark.to/api/vidora/v1/tv/${mediaId}/${season}/${episode}`
@@ -234,7 +257,6 @@ export class DownloadEngine {
         }
       } catch (err: any) {
         if (attempt < 2) {
-          // Wait 1.5 seconds before retrying
           await new Promise((r) => setTimeout(r, 1500));
         }
       }

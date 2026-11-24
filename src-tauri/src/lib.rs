@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
+use reqwest::header::{HeaderMap, HeaderValue};
 
 static ACTIVE_DOWNLOADS: std::sync::LazyLock<Arc<Mutex<HashMap<String, u32>>>> =
     std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
@@ -372,6 +373,147 @@ fn start_native_download(
     Ok(download_id)
 }
 
+#[derive(serde::Serialize)]
+pub struct TmdbStreamResult {
+    pub resolved: bool,
+    pub stream_url: Option<String>,
+    pub vidspark_url: String,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+async fn check_tmdb_stream(
+    media_id: u64,
+    media_type: String,
+    season: Option<u32>,
+    episode: Option<u32>,
+) -> Result<TmdbStreamResult, String> {
+    let is_tv = media_type == "series" && season.is_some() && episode.is_some();
+    let vidspark_url = if is_tv {
+        format!(
+            "https://vidspark.to/tv/{}/{}/{}",
+            media_id,
+            season.unwrap(),
+            episode.unwrap()
+        )
+    } else {
+        format!("https://vidspark.to/movie/{}", media_id)
+    };
+    let api_url = if is_tv {
+        format!(
+            "https://vidspark.to/api/vidora/v1/tv/{}/{}/{}",
+            media_id,
+            season.unwrap(),
+            episode.unwrap()
+        )
+    } else {
+        format!("https://vidspark.to/api/vidora/v1/movie/{}", media_id)
+    };
+
+    // Build request with proper headers
+    let mut headers = HeaderMap::new();
+    headers.insert("x-player-key", HeaderValue::from_static("3a67e8866ae1d2bb9e81fe7f73315a56eb3bdf5e3e755c7554c8be6910aa6b13"));
+    if let Ok(v) = HeaderValue::from_str(&vidspark_url) {
+        headers.insert("Referer", v);
+    }
+    headers.insert("Origin", HeaderValue::from_static("https://vidspark.to"));
+    headers.insert("User-Agent", HeaderValue::from_static(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ));
+    headers.insert("Accept", HeaderValue::from_static("application/json, text/plain, */*"));
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    // Try up to 2 times
+    for attempt in 1..=2u8 {
+        match client.get(&api_url).headers(headers.clone()).send().await {
+            Ok(resp) => {
+                if resp.status().is_success() {
+                    match resp.json::<serde_json::Value>().await {
+                        Ok(data) => {
+                            let result = data.get("result").and_then(|v| v.as_bool()).unwrap_or(false);
+                            if result {
+                                if let Some(sources) = data.get("sources").and_then(|v| v.as_array()) {
+                                    if let Some(first) = sources.first() {
+                                        if let Some(url) = first.get("url").and_then(|v| v.as_str()) {
+                                            return Ok(TmdbStreamResult {
+                                                resolved: true,
+                                                stream_url: Some(url.to_string()),
+                                                vidspark_url,
+                                                error: None,
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                            // API responded but no stream available for this title
+                            return Ok(TmdbStreamResult {
+                                resolved: false,
+                                stream_url: None,
+                                vidspark_url,
+                                error: Some("Title not indexed in provider cluster".to_string()),
+                            });
+                        }
+                        Err(e) => {
+                            if attempt < 2 {
+                                tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                                continue;
+                            }
+                            return Ok(TmdbStreamResult {
+                                resolved: false,
+                                stream_url: None,
+                                vidspark_url,
+                                error: Some(format!("Parse error: {}", e)),
+                            });
+                        }
+                    }
+                } else if resp.status().as_u16() == 404 {
+                    // Definitely not in cluster
+                    return Ok(TmdbStreamResult {
+                        resolved: false,
+                        stream_url: None,
+                        vidspark_url,
+                        error: Some("Title not found in provider cluster (404)".to_string()),
+                    });
+                } else {
+                    if attempt < 2 {
+                        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                        continue;
+                    }
+                    return Ok(TmdbStreamResult {
+                        resolved: false,
+                        stream_url: None,
+                        vidspark_url,
+                        error: Some(format!("HTTP {}", resp.status())),
+                    });
+                }
+            }
+            Err(e) => {
+                if attempt < 2 {
+                    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                    continue;
+                }
+                return Ok(TmdbStreamResult {
+                    resolved: false,
+                    stream_url: None,
+                    vidspark_url,
+                    error: Some(format!("Network error: {}", e)),
+                });
+            }
+        }
+    }
+
+    Ok(TmdbStreamResult {
+        resolved: false,
+        stream_url: None,
+        vidspark_url,
+        error: Some("All attempts exhausted".to_string()),
+    })
+}
+
 #[tauri::command]
 fn cancel_native_download(id: String) -> Result<(), String> {
     let mut map = ACTIVE_DOWNLOADS.lock().unwrap();
@@ -445,6 +587,7 @@ pub fn run() {
             is_window_maximized,
             start_native_download,
             cancel_native_download,
+            check_tmdb_stream,
             open_in_folder
         ])
         .setup(|app| {
