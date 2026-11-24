@@ -102,9 +102,11 @@ def run_ytdlp_download(job_id: str, target_url: str):
     ydl_opts = {
         "format": "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bestvideo+bestaudio/best",
         "outtmpl": output_template,
-        "concurrent_fragment_downloads": 8,  # High-speed parallel segment extraction
+        "concurrent_fragment_downloads": 16,  # 16 parallel high-speed stream connections
+        "buffersize": 16 * 1024 * 1024,      # 16MB RAM buffer for sustained high throughput
         "retries": 10,
         "fragment_retries": 10,
+        "hls_use_mpegts": True,
         "quiet": True,
         "no_warnings": True,
         "progress_hooks": [progress_hook],
@@ -255,17 +257,29 @@ def download_result(job_id: str, x_api_key: Optional[str] = Header(None)):
     )
 
 
-# Mount Gradio UI so Hugging Face Space detects it as healthy and running
+@app.get("/")
+def root():
+    return {
+        "service": "Flexnit StreamLink High-Speed Service",
+        "status": "ok",
+        "version": "2.0.0",
+        "concurrency": "16-fragment parallel streams",
+        "endpoints": ["/health", "/api/streamlink/download", "/api/streamlink/jobs/{job_id}", "/ui"]
+    }
+
+
+# Mount Gradio UI on /ui so FastAPI serves root and API endpoints directly
 with gr.Blocks(title="Flexnit StreamLink High-Speed Service") as demo:
     gr.Markdown("# ⚡ Flexnit StreamLink High-Speed Service")
     gr.Markdown(
-        "Dedicated **8-stream concurrent segment downloader & remuxer** powering offline downloads in Flexnit."
+        "Dedicated **16-stream concurrent segment downloader & remuxer** powering offline downloads in Flexnit."
     )
     with gr.Row():
-        status_box = gr.Textbox(label="Service Status", value="Operational (8 Concurrent Streams)")
+        status_box = gr.Textbox(label="Service Status", value="Operational (16 Concurrent Streams)")
         engine_box = gr.Textbox(label="Engine", value="yt-dlp + FFmpeg + FastAPI")
 
-app = gr.mount_gradio_app(app, demo, path="/")
+app = gr.mount_gradio_app(app, demo, path="/ui")
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))
