@@ -1,16 +1,15 @@
-; *** Advanced Installer Updates Configuration File ***
-; Documentation: https://www.advancedinstaller.com/user-guide/updater-config-file.html
+;aiu;
 
 [Flexnit-1.0.0]
 Name = Flexnit
 ProductVersion = 1.0.0
 URL = https://github.com/Winter-soljer/flexnit-desktop/releases/download/v1.0.0/Flexnit_1.0.0_x64-setup.exe
 Size = 79406549
-MD5 = AA1C98AA1AFE71805F90B3355794A821
 ServerFileName = Flexnit_1.0.0_x64-setup.exe
 Flags = Critical
 Description = What's new in Flexnit v1.0.0:
-Feature = High-Speed 8-Stream HLS Concurrency (downloads in 1-2 mins)
-Feature = Offline media engine with anti-hotlink bypass
-Feature = Multi-profile switching with Kids content filtering
+Feature = High-Speed 16-Stream HLS Concurrency (downloads in 1-2 mins)
+Feature = Native OS-level TMDB stream resolution bypassing webview restrictions
+Feature = Hugging Face Spaces Primary API with automated Cloud Run failover
+Feature = Offline media engine with multi-profile switching & kids filtering
 Feature = Auto-resume video playback & scrub line controls
