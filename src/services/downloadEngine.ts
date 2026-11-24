@@ -205,31 +205,39 @@ export class DownloadEngine {
       // Local web backend not running or not responding
     }
 
-    // 2. Check Vidora cluster API directly
+    // 2. Check Vidora cluster API directly with retries & extended timeout
     const VIDSPARK_PLAYER_KEY = "3a67e8866ae1d2bb9e81fe7f73315a56eb3bdf5e3e755c7554c8be6910aa6b13";
     const apiUrl = isTv
       ? `https://vidspark.to/api/vidora/v1/tv/${mediaId}/${season}/${episode}`
       : `https://vidspark.to/api/vidora/v1/movie/${mediaId}`;
 
-    try {
-      const res = await axios.get(apiUrl, {
-        headers: {
-          "x-player-key": VIDSPARK_PLAYER_KEY,
-          "Referer": vidsparkUrl,
-          "Accept": "application/json, text/plain, */*",
-        },
-        timeout: 4000,
-      });
+    // Try up to 2 times with a 15-second timeout (cluster scraping can take 8-12 seconds on cold titles)
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const res = await axios.get(apiUrl, {
+          headers: {
+            "x-player-key": VIDSPARK_PLAYER_KEY,
+            "Referer": vidsparkUrl,
+            "Origin": "https://vidspark.to",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+          },
+          timeout: 15000,
+        });
 
-      if (res.data?.result && Array.isArray(res.data?.sources) && res.data.sources[0]?.url) {
-        return {
-          resolved: true,
-          streamUrl: res.data.sources[0].url,
-          vidsparkUrl,
-        };
+        if (res.data?.result && Array.isArray(res.data?.sources) && res.data.sources[0]?.url) {
+          return {
+            resolved: true,
+            streamUrl: res.data.sources[0].url,
+            vidsparkUrl,
+          };
+        }
+      } catch (err: any) {
+        if (attempt < 2) {
+          // Wait 1.5 seconds before retrying
+          await new Promise((r) => setTimeout(r, 1500));
+        }
       }
-    } catch {
-      // Title not in Vidora direct cluster
     }
 
     return {
