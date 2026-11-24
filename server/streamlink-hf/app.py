@@ -268,7 +268,7 @@ def root():
     }
 
 
-# Mount Gradio UI on /ui so FastAPI serves root and API endpoints directly
+# Mount custom FastAPI router directly onto Gradio's internal FastAPI app
 with gr.Blocks(title="Flexnit StreamLink High-Speed Service") as demo:
     gr.Markdown("# ⚡ Flexnit StreamLink High-Speed Service")
     gr.Markdown(
@@ -278,16 +278,8 @@ with gr.Blocks(title="Flexnit StreamLink High-Speed Service") as demo:
         status_box = gr.Textbox(label="Service Status", value="Operational (16 Concurrent Streams)")
         engine_box = gr.Textbox(label="Engine", value="yt-dlp + FFmpeg + FastAPI")
 
-app = gr.mount_gradio_app(app, demo, path="/ui")
+# Attach all FastAPI endpoints (/health, /api/streamlink/download, etc.) to demo.app
+demo.app.include_router(app.router)
 
 if __name__ == "__main__":
-    import socket
-    import uvicorn
-
-    port = int(os.environ.get("PORT", 7860))
-    # In Hugging Face ZeroGPU spaces, internal supervisor may occupy 7860
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        if s.connect_ex(("127.0.0.1", port)) == 0:
-            port = 7861
-
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
