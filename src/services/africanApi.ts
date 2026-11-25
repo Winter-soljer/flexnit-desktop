@@ -12,7 +12,7 @@ import {
   SEED_AFRICAN_HOME_FEED,
 } from "./africanSeed";
 
-const BASE_URL = "https://flexnit-1.web.app";
+const BASE_URL = "https://flexnitweb.web.app";
 
 export const africanService = {
   async getFeed(): Promise<AfricanFeedResponse> {
