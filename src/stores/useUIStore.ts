@@ -92,7 +92,7 @@ export const useUIStore = create<UIState>((set) => ({
 
       return {
         activePlayer: resolvedPlayer,
-        previousDetailMedia: state.selectedMedia || state.previousDetailMedia || player.media,
+        previousDetailMedia: state.selectedMedia ? state.selectedMedia : null,
         selectedMedia: null,
       };
     }),

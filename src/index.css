@@ -21,20 +21,17 @@ body {
   -webkit-user-select: none;
 }
 
-/* Custom Netflix-style scrollbars */
+/* Eliminate all scrollbars globally while preserving scroll functionality */
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar,
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #141414;
-}
-::-webkit-scrollbar-thumb {
-  background: #333333;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #555555;
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 /* Ken Burns background subtle pan */

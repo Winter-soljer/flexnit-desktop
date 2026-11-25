@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Minus, Square, Copy, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useUIStore } from "../../stores/useUIStore";
 
 export const TitleBar: React.FC = () => {
@@ -35,14 +36,30 @@ export const TitleBar: React.FC = () => {
     if (isTauri) invoke("close_window").catch(console.error);
   };
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0 && !(e.target as HTMLElement).closest("button")) {
+      if (isTauri) {
+        getCurrentWindow().startDragging().catch(() => {});
+      }
+    }
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (!(e.target as HTMLElement).closest("button")) {
+      handleToggleMaximize();
+    }
+  };
+
   return (
     <div
       data-tauri-drag-region
-      className="fixed top-0 left-0 right-0 h-8 z-50 flex items-center justify-between px-3 bg-[#141414] border-b border-white/5 select-none text-white text-xs shadow-sm"
+      onMouseDown={handleMouseDown}
+      onDoubleClick={handleDoubleClick}
+      className="fixed top-0 left-0 right-0 h-8 z-50 flex items-center justify-between px-3 bg-[#141414] border-b border-white/5 select-none text-white text-xs shadow-sm cursor-default"
     >
       <div
         data-tauri-drag-region
-        className="flex items-center space-x-2 text-zinc-400 font-medium tracking-wider"
+        className="flex items-center space-x-2 text-zinc-400 font-medium tracking-wider pointer-events-none"
       >
         <img
           src="/icon.png"

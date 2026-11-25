@@ -89,6 +89,15 @@ export const App: React.FC = () => {
     fetchAfricanFeed();
   }, [fetchHomeData, fetchAfricanFeed]);
 
+  // Suppress browser/WebView2 default context menu across the app
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("contextmenu", handleContextMenu);
+    return () => window.removeEventListener("contextmenu", handleContextMenu);
+  }, []);
+
   const continueWatchingItems = history.map((h) => h.media);
 
   // Content Filtering for Kids Profile
