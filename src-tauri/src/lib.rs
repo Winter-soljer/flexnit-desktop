@@ -199,7 +199,8 @@ fn start_native_download(
         .arg("16M") // 16MB in-memory buffer to prevent disk I/O bottlenecks
         .arg("--http-chunk-size")
         .arg("10M")
-        .arg("--hls-use-mpegts") // Direct MPEG-TS writing (faster HLS segment extraction)
+        .arg("--remux-video")
+        .arg("mp4") // Always remux fragments into standard ISO MP4 for HTML5 <video> webview playback
         .arg("--retries")
         .arg("20")
         .arg("--fragment-retries")
@@ -222,7 +223,9 @@ fn start_native_download(
     if let Some(ref ffmpeg) = ffmpeg_path {
         cmd.arg("--ffmpeg-location").arg(ffmpeg)
             .arg("--downloader-args")
-            .arg("ffmpeg:-tls_verify 0");
+            .arg("ffmpeg:-tls_verify 0")
+            .arg("--postprocessor-args")
+            .arg("ffmpeg:-movflags +faststart");
     }
 
     #[cfg(windows)]

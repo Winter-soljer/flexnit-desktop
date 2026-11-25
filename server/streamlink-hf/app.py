@@ -107,9 +107,12 @@ def run_ytdlp_download(job_id: str, target_url: str):
         "buffersize": 16 * 1024 * 1024,      # 16MB RAM buffer for sustained high throughput
         "retries": 20,
         "fragment_retries": 20,
-        "hls_use_mpegts": True,
+        "remuxvideo": "mp4",                 # Ensure final output is standard MP4 for HTML5 webview playback
         "external_downloader_args": {
             "ffmpeg": ["-tls_verify", "0"]
+        },
+        "postprocessor_args": {
+            "ffmpeg": ["-movflags", "+faststart"]
         },
         "quiet": True,
         "no_warnings": True,
