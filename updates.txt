@@ -4,12 +4,13 @@
 Name = Flexnit
 ProductVersion = 1.0.0
 URL = https://github.com/Winter-soljer/flexnit-desktop/releases/download/v1.0.0/Flexnit_1.0.0_x64-setup.exe
-Size = 80251828
+Size = 80257172
 ServerFileName = Flexnit_1.0.0_x64-setup.exe
 Flags = Critical
 Description = What's new in Flexnit v1.0.0:
 Feature = High-Speed 16-Stream HLS Concurrency (downloads in 1-2 mins)
 Feature = Automatic CDN SSL verification bypass (--no-check-certificates)
+Feature = Auto-remux to genuine ISO MP4 with faststart for zero-latency webview playback
 Feature = Native OS-level TMDB stream resolution bypassing webview restrictions
 Feature = Hugging Face Spaces Primary API with automated Cloud Run failover
 Feature = Offline media engine with multi-profile switching & kids filtering
