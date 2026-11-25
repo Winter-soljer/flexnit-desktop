@@ -192,6 +192,7 @@ fn start_native_download(
         .arg("--newline")
         .arg("--no-playlist")
         .arg("--progress")
+        .arg("--no-check-certificates") // Ignore CDN SSL hostname mismatches (e.g. netrocdn, vidspark mirrors)
         .arg("--concurrent-fragments")
         .arg("16") // 16 parallel fragment connections for maximum line speed
         .arg("--buffer-size")
@@ -200,9 +201,9 @@ fn start_native_download(
         .arg("10M")
         .arg("--hls-use-mpegts") // Direct MPEG-TS writing (faster HLS segment extraction)
         .arg("--retries")
-        .arg("15")
+        .arg("20")
         .arg("--fragment-retries")
-        .arg("15");
+        .arg("20");
 
     // Pass CDN anti-hotlinking headers for TMDB/Vidspark HLS streams
     if !request.source_url.contains("youtube.com") && !request.source_url.contains("youtu.be") {
@@ -219,7 +220,9 @@ fn start_native_download(
         .arg(&request.source_url);
 
     if let Some(ref ffmpeg) = ffmpeg_path {
-        cmd.arg("--ffmpeg-location").arg(ffmpeg);
+        cmd.arg("--ffmpeg-location").arg(ffmpeg)
+            .arg("--downloader-args")
+            .arg("ffmpeg:-tls_verify 0");
     }
 
     #[cfg(windows)]

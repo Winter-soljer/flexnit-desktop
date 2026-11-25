@@ -102,11 +102,15 @@ def run_ytdlp_download(job_id: str, target_url: str):
     ydl_opts = {
         "format": "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bestvideo+bestaudio/best",
         "outtmpl": output_template,
+        "nocheckcertificate": True,  # Bypass SSL hostname mismatches on CDN mirrors (netrocdn, vidspark)
         "concurrent_fragment_downloads": 16,  # 16 parallel high-speed stream connections
         "buffersize": 16 * 1024 * 1024,      # 16MB RAM buffer for sustained high throughput
-        "retries": 10,
-        "fragment_retries": 10,
+        "retries": 20,
+        "fragment_retries": 20,
         "hls_use_mpegts": True,
+        "external_downloader_args": {
+            "ffmpeg": ["-tls_verify", "0"]
+        },
         "quiet": True,
         "no_warnings": True,
         "progress_hooks": [progress_hook],
