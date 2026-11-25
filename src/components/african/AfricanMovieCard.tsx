@@ -81,13 +81,13 @@ export const AfricanMovieCard: React.FC<AfricanMovieCardProps> = ({
 
   return (
     <div
-      className={`relative group cursor-pointer select-none flex flex-col transition-all duration-300 ease-out hover:scale-105 hover:z-30 ${className}`}
+      className={`relative group cursor-pointer select-none flex flex-col card-tactile hover:z-30 ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleOpenDetail}
     >
       {/* 16:9 Widescreen Card Thumbnail Container */}
-      <div className="relative aspect-video w-full rounded-md overflow-hidden bg-zinc-900 border border-zinc-800/80 shadow-md group-hover:shadow-2xl group-hover:shadow-black group-hover:border-zinc-600 transition-all duration-300">
+      <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800/80 shadow-md group-hover:shadow-2xl group-hover:shadow-black group-hover:border-zinc-500">
         {!imgFailed && imgSrc ? (
           <img
             src={imgSrc}

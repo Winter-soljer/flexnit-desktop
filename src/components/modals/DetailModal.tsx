@@ -204,17 +204,17 @@ export const DetailModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm px-4 py-10 md:py-16 flex justify-center items-start"
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md px-4 py-10 md:py-16 flex justify-center items-start animate-in fade-in duration-200"
       onClick={closeDetailModal}
     >
       <div
-        className="relative w-full max-w-4xl bg-[#181818] rounded-xl overflow-hidden shadow-2xl shadow-black border border-zinc-700/80 mb-16 text-white animate-in zoom-in-95 duration-200"
+        className="animate-modal-enter relative w-full max-w-4xl bg-[#181818] rounded-xl overflow-hidden shadow-2xl shadow-black border border-zinc-700/80 mb-16 text-white"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
           onClick={closeDetailModal}
-          className="absolute top-4 right-4 z-30 w-9 h-9 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center transition-colors"
+          className="btn-tactile absolute top-4 right-4 z-30 w-9 h-9 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center hover:rotate-90 hover:scale-105"
         >
           <X className="w-5 h-5" />
         </button>
@@ -253,7 +253,7 @@ export const DetailModal: React.FC = () => {
                     handlePlay(selectedSeason, 1);
                   }
                 }}
-                className="flex items-center space-x-2 px-6 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-sm rounded shadow-lg transition-transform hover:scale-105 cursor-pointer"
+                className="btn-tactile flex items-center space-x-2 px-6 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-sm rounded shadow-lg hover:scale-105 cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-black" />
                 <span>
@@ -267,7 +267,7 @@ export const DetailModal: React.FC = () => {
 
               <button
                 onClick={() => toggleItem(selectedMedia)}
-                className="w-10 h-10 rounded-full bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-600 text-white flex items-center justify-center transition-colors"
+                className="btn-tactile w-10 h-10 rounded-full bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-600 text-white flex items-center justify-center"
                 title={isSaved ? "Remove from My List" : "Add to My List"}
               >
                 {isSaved ? (
@@ -279,14 +279,14 @@ export const DetailModal: React.FC = () => {
 
               <button
                 onClick={() => handleDownload()}
-                className="w-10 h-10 rounded-full bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-600 text-white flex items-center justify-center transition-colors"
+                className="btn-tactile w-10 h-10 rounded-full bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-600 text-white flex items-center justify-center"
                 title="Download"
               >
                 <Download className="w-4 h-4" />
               </button>
 
               <button
-                className="w-10 h-10 rounded-full bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-600 text-white flex items-center justify-center transition-colors"
+                className="btn-tactile w-10 h-10 rounded-full bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-600 text-white flex items-center justify-center"
                 title="Rate"
               >
                 <ThumbsUp className="w-4 h-4" />

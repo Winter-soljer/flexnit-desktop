@@ -94,13 +94,13 @@ export const MovieCard: React.FC<MovieCardProps> = ({
       onClick={handleOpenDetail}
     >
       {/* Contained Card Thumbnail & Action Overlay */}
-      <div className="relative aspect-video rounded-md overflow-hidden bg-zinc-900 border border-zinc-800/80 shadow-md group-hover:shadow-2xl group-hover:shadow-black group-hover:border-zinc-600 transition-all duration-300">
+      <div className="card-tactile relative aspect-video rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800/80 shadow-md group-hover:shadow-2xl group-hover:shadow-black/90 group-hover:border-zinc-500">
         {backdrop ? (
           <img
             src={backdrop}
             alt={media.title}
             loading="lazy"
-            className="w-full h-full object-cover group-hover:brightness-90 transition-all duration-300"
+            className="w-full h-full object-cover group-hover:scale-105 group-hover:brightness-95 transition-transform duration-500 ease-out"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-zinc-850 p-2 text-center text-xs text-zinc-400">
@@ -147,7 +147,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
                 {/* Play Button */}
                 <button
                   onClick={handlePlay}
-                  className="w-6 h-6 rounded-full bg-white hover:bg-zinc-200 text-black flex items-center justify-center transition-transform hover:scale-110 shadow"
+                  className="w-6 h-6 rounded-full bg-white hover:bg-zinc-200 text-black flex items-center justify-center btn-tactile hover:scale-110 shadow"
                   title="Play"
                 >
                   <Play className="w-3 h-3 fill-black translate-x-0.5" />
@@ -156,7 +156,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
                 {/* Add to List */}
                 <button
                   onClick={handleToggleList}
-                  className="w-6 h-6 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white flex items-center justify-center transition-colors"
+                  className="w-6 h-6 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white flex items-center justify-center btn-tactile"
                   title={isSaved ? "Remove from My List" : "Add to My List"}
                 >
                   {isSaved ? (
@@ -168,7 +168,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
 
                 {/* Like Button */}
                 <button
-                  className="w-6 h-6 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white flex items-center justify-center transition-colors"
+                  className="w-6 h-6 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white flex items-center justify-center btn-tactile"
                   title="Like"
                 >
                   <ThumbsUp className="w-2.5 h-2.5" />
@@ -177,7 +177,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
                 {/* Download Button */}
                 <button
                   onClick={handleDownload}
-                  className={`w-6 h-6 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center transition-colors ${
+                  className={`w-6 h-6 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center btn-tactile ${
                     isDownloaded
                       ? "text-green-400"
                       : isDownloading

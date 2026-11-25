@@ -51,11 +51,11 @@ export const Navbar: React.FC = () => {
     >
       {/* Left side: Logo & Nav items */}
       <div className="flex items-center space-x-6 lg:space-x-8">
-        <div onClick={() => setActiveTab("home")}>
+        <div onClick={() => setActiveTab("home")} className="cursor-pointer btn-tactile">
           <FlexnitLogo size="md" />
         </div>
 
-        <ul className="hidden md:flex items-center space-x-5 text-sm">
+        <ul className="hidden md:flex items-center space-x-1.5 text-sm">
           {navItems.map((item) => {
             const isActive = activeTab === item.tab && !searchQuery;
             return (
@@ -65,13 +65,16 @@ export const Navbar: React.FC = () => {
                     setActiveTab(item.tab);
                     setSearchQuery("");
                   }}
-                  className={`transition-colors duration-200 ${
+                  className={`relative py-1 px-3 rounded-full transition-all duration-200 btn-tactile cursor-pointer ${
                     isActive
-                      ? "text-white font-bold cursor-default"
-                      : "text-zinc-300 hover:text-zinc-400 font-normal"
+                      ? "text-white font-semibold bg-white/10 shadow-sm"
+                      : "text-zinc-300 hover:text-white hover:bg-white/5 font-normal"
                   }`}
                 >
                   {item.label}
+                  {isActive && (
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-red-600 rounded-full animate-in fade-in duration-200" />
+                  )}
                 </button>
               </li>
             );
@@ -80,11 +83,11 @@ export const Navbar: React.FC = () => {
       </div>
 
       {/* Right side utilities */}
-      <div className="flex items-center space-x-5 text-white">
+      <div className="flex items-center space-x-4 text-white">
         {/* Animated Search input */}
         <div className="flex items-center">
           {isSearchOpen ? (
-            <div className="flex items-center bg-black/80 border border-white/60 px-2.5 py-1 rounded transition-all duration-300 w-48 sm:w-64">
+            <div className="flex items-center bg-black/85 border border-white/60 px-2.5 py-1 rounded-lg transition-all duration-300 w-48 sm:w-64 animate-in fade-in zoom-in-95">
               <Search className="w-4 h-4 text-zinc-400 mr-2 shrink-0" />
               <input
                 type="text"
@@ -101,14 +104,14 @@ export const Navbar: React.FC = () => {
               {searchQuery ? (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="text-zinc-400 hover:text-white"
+                  className="text-zinc-400 hover:text-white btn-tactile p-0.5"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               ) : (
                 <button
                   onClick={() => setIsSearchOpen(false)}
-                  className="text-zinc-400 hover:text-white"
+                  className="text-zinc-400 hover:text-white btn-tactile p-0.5"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -117,7 +120,7 @@ export const Navbar: React.FC = () => {
           ) : (
             <button
               onClick={() => setIsSearchOpen(true)}
-              className="text-zinc-200 hover:text-white transition-colors p-1"
+              className="text-zinc-200 hover:text-white btn-tactile p-1.5 rounded-full hover:bg-white/10"
               title="Search"
             >
               <Search className="w-5 h-5" />
@@ -131,9 +134,9 @@ export const Navbar: React.FC = () => {
             setActiveTab("notifications");
             setSearchQuery("");
           }}
-          className={`transition-colors relative p-1.5 rounded hover:bg-white/10 cursor-pointer ${
+          className={`btn-tactile relative p-1.5 rounded-full hover:bg-white/10 cursor-pointer ${
             activeTab === "notifications"
-              ? "text-red-500 bg-white/5"
+              ? "text-red-500 bg-white/10"
               : "text-zinc-200 hover:text-white"
           }`}
           title="Notifications"
@@ -152,9 +155,9 @@ export const Navbar: React.FC = () => {
             setActiveTab("downloads");
             setSearchQuery("");
           }}
-          className={`transition-colors relative p-1.5 rounded hover:bg-white/10 cursor-pointer ${
+          className={`btn-tactile relative p-1.5 rounded-full hover:bg-white/10 cursor-pointer ${
             activeTab === "downloads"
-              ? "text-red-500 bg-white/5"
+              ? "text-red-500 bg-white/10"
               : "text-zinc-200 hover:text-white"
           }`}
           title="Downloads"
@@ -173,8 +176,8 @@ export const Navbar: React.FC = () => {
             setActiveTab("profile");
             setSearchQuery("");
           }}
-          className={`flex items-center space-x-1.5 cursor-pointer group p-1 rounded transition-all hover:scale-105 ${
-            activeTab === "profile" ? "ring-2 ring-white/60 rounded-md bg-white/5" : ""
+          className={`btn-tactile flex items-center space-x-1.5 cursor-pointer group p-1 rounded-lg ${
+            activeTab === "profile" ? "ring-2 ring-white/60 bg-white/10" : "hover:bg-white/5"
           }`}
           title={`Active Profile: ${activeProfile.name}`}
         >

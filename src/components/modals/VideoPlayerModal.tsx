@@ -380,7 +380,7 @@ export const VideoPlayerModal: React.FC = () => {
         <div className="flex items-center space-x-4">
           <button
             onClick={closePlayer}
-            className="w-10 h-10 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors cursor-pointer"
+            className="w-10 h-10 rounded-full hover:bg-white/20 flex items-center justify-center btn-tactile cursor-pointer"
             title="Back to Browse"
           >
             <ArrowLeft className="w-6 h-6" />
@@ -421,7 +421,7 @@ export const VideoPlayerModal: React.FC = () => {
           {isSeries && nextTarget && (
             <button
               onClick={handleNext}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all shadow-sm cursor-pointer ${nextTarget.isNewSeason
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white btn-tactile shadow-sm cursor-pointer ${nextTarget.isNewSeason
                 ? "bg-gradient-to-r from-red-600 to-amber-600 hover:brightness-110"
                 : "bg-red-600 hover:bg-red-700"
                 }`}
@@ -434,7 +434,7 @@ export const VideoPlayerModal: React.FC = () => {
 
           <button
             onClick={handleDownload}
-            className="p-2 rounded-full hover:bg-zinc-800 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+            className="p-2 rounded-full hover:bg-zinc-800 text-zinc-300 hover:text-white btn-tactile cursor-pointer"
             title="Download for offline"
           >
             <Download className="w-5 h-5" />
@@ -442,7 +442,7 @@ export const VideoPlayerModal: React.FC = () => {
 
           <button
             onClick={toggleFullscreen}
-            className="p-2 rounded-full hover:bg-zinc-800 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+            className="p-2 rounded-full hover:bg-zinc-800 text-zinc-300 hover:text-white btn-tactile cursor-pointer"
             title="Fullscreen"
           >
             <Maximize2 className="w-5 h-5" />
@@ -495,7 +495,7 @@ export const VideoPlayerModal: React.FC = () => {
         {/* Skip Intro Button - Far left directly above the scrub line */}
         <button
           onClick={handleSkipIntro}
-          className="absolute bottom-16 sm:bottom-20 left-8 z-30 flex items-center space-x-2 bg-black/85 hover:bg-black text-white border border-white/30 hover:border-white px-4 py-2 rounded-lg font-bold text-xs shadow-2xl backdrop-blur-md transition-all hover:scale-105 active:scale-95 cursor-pointer animate-in fade-in"
+          className="absolute bottom-16 sm:bottom-20 left-8 z-30 flex items-center space-x-2 bg-black/85 hover:bg-black text-white border border-white/30 hover:border-white px-4 py-2 rounded-lg font-bold text-xs shadow-2xl backdrop-blur-md btn-tactile cursor-pointer animate-in fade-in"
           title="Skip Intro (+85s)"
         >
           <FastForward className="w-4 h-4 text-red-500" />
@@ -564,14 +564,14 @@ export const VideoPlayerModal: React.FC = () => {
             <div className="flex items-center space-x-2">
               <button
                 onClick={handleNext}
-                className="flex-1 flex items-center justify-center space-x-1.5 bg-white hover:bg-zinc-200 text-black font-bold py-2 px-3 rounded text-xs transition-colors cursor-pointer active:scale-95"
+                className="flex-1 flex items-center justify-center space-x-1.5 bg-white hover:bg-zinc-200 text-black font-bold py-2 px-3 rounded text-xs btn-tactile cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-black" />
                 <span>Play Now</span>
               </button>
               <button
                 onClick={cancelCountdown}
-                className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-semibold rounded text-xs transition-colors cursor-pointer"
+                className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-semibold rounded text-xs btn-tactile cursor-pointer"
               >
                 Cancel
               </button>

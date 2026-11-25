@@ -131,23 +131,24 @@ export const App: React.FC = () => {
       {/* Netflix Navigation Bar */}
       <Navbar />
 
-      {/* Main Content Area */}
+      {/* Main Content Area with fluid spring page transitions */}
       <main className="flex-1">
-        {searchQuery.trim() ? (
-          <SearchOverlay />
-        ) : activeTab === "notifications" ? (
-          <NotificationsView />
-        ) : activeTab === "profile" ? (
-          <UserProfileView />
-        ) : activeTab === "african" ? (
-          <AfricanSection />
-        ) : activeTab === "african_catalog" ? (
-          <AfricanCatalogView />
-        ) : activeTab === "mylist" ? (
-          <MyListView />
-        ) : activeTab === "downloads" ? (
-          <DownloadsView />
-        ) : activeTab === "series" ? (
+        <div key={searchQuery.trim() ? "search" : activeTab} className="animate-page-enter">
+          {searchQuery.trim() ? (
+            <SearchOverlay />
+          ) : activeTab === "notifications" ? (
+            <NotificationsView />
+          ) : activeTab === "profile" ? (
+            <UserProfileView />
+          ) : activeTab === "african" ? (
+            <AfricanSection />
+          ) : activeTab === "african_catalog" ? (
+            <AfricanCatalogView />
+          ) : activeTab === "mylist" ? (
+            <MyListView />
+          ) : activeTab === "downloads" ? (
+            <DownloadsView />
+          ) : activeTab === "series" ? (
           <div className="pt-20 pb-16 space-y-4">
             <div className="px-8 md:px-14 mb-4">
               <h1 className="text-3xl font-black tracking-wide">TV Series & Shows</h1>
@@ -369,6 +370,7 @@ export const App: React.FC = () => {
             </div>
           </div>
         )}
+        </div>
       </main>
 
       {/* Expanded Movie/TV Detail Modal */}

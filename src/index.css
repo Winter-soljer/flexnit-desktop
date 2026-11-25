@@ -51,6 +51,99 @@ body {
   animation: kenburns 30s ease-in-out infinite alternate;
 }
 
+/* ==========================================================================
+   Emil Kowalski Motion Design System (Spring curves, 120-250ms, GPU transforms)
+   ========================================================================== */
+
+:root {
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pageEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes shimmerProgress {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes subtlePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.05);
+  }
+}
+
+.animate-page-enter {
+  animation: pageEnter 200ms var(--ease-spring) forwards;
+  will-change: opacity, transform;
+}
+
+.animate-modal-enter {
+  animation: modalEnter 220ms var(--ease-spring) forwards;
+  will-change: opacity, transform;
+}
+
+.animate-pulse-subtle {
+  animation: subtlePulse 2.5s ease-in-out infinite;
+}
+
+/* Tactile button press feedback */
+.btn-tactile {
+  transition: transform 120ms var(--ease-spring), background-color 150ms ease, opacity 150ms ease, box-shadow 150ms ease;
+  will-change: transform;
+}
+.btn-tactile:active {
+  transform: scale(0.94);
+}
+
+/* Card hover and press interaction */
+.card-tactile {
+  transition: transform 240ms var(--ease-spring), box-shadow 240ms var(--ease-spring), border-color 200ms ease;
+  will-change: transform, box-shadow;
+}
+.card-tactile:hover {
+  transform: scale(1.04) translateY(-3px);
+}
+.card-tactile:active {
+  transform: scale(0.98);
+}
+
+/* Download progress shimmer */
+.shimmer-progress {
+  background: linear-gradient(90deg, #dc2626 0%, #ef4444 35%, #fca5a5 50%, #ef4444 65%, #dc2626 100%);
+  background-size: 250% 100%;
+  animation: shimmerProgress 2s linear infinite;
+}
+
 /* Hide scrollbar for carousel rails while keeping scroll functionality */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

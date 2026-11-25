@@ -66,7 +66,7 @@ export const ContentRail: React.FC<ContentRailProps> = ({
       {isMoved && (
         <button
           onClick={() => handleScroll("left")}
-          className="absolute left-0 top-8 bottom-0 z-30 w-12 bg-black/70 hover:bg-black/90 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-r shadow-2xl backdrop-blur-sm cursor-pointer"
+          className="absolute left-0 top-8 bottom-0 z-30 w-12 bg-black/70 hover:bg-black/95 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-r shadow-2xl backdrop-blur-sm cursor-pointer btn-tactile hover:scale-105 active:scale-95"
           title="Scroll Left"
         >
           <ChevronLeft className="w-8 h-8" />
@@ -97,7 +97,7 @@ export const ContentRail: React.FC<ContentRailProps> = ({
       {/* Right Chevron Button */}
       <button
         onClick={() => handleScroll("right")}
-        className="absolute right-0 top-8 bottom-0 z-30 w-12 bg-black/70 hover:bg-black/90 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-l shadow-2xl backdrop-blur-sm cursor-pointer"
+        className="absolute right-0 top-8 bottom-0 z-30 w-12 bg-black/70 hover:bg-black/95 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-l shadow-2xl backdrop-blur-sm cursor-pointer btn-tactile hover:scale-105 active:scale-95"
         title="Scroll Right"
       >
         <ChevronRight className="w-8 h-8" />

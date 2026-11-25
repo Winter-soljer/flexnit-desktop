@@ -47,7 +47,7 @@ export const DownloadsView: React.FC = () => {
           {hasFailed && (
             <button
               onClick={clearFailedDownloads}
-              className="text-xs text-red-400 hover:text-red-300 bg-red-950/40 hover:bg-red-950/70 border border-red-900/60 px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+              className="text-xs text-red-400 hover:text-red-300 bg-red-950/40 hover:bg-red-950/70 border border-red-900/60 px-3 py-1.5 rounded-lg btn-tactile cursor-pointer flex items-center gap-1.5"
               title="Clear all failed downloads from history"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -156,7 +156,7 @@ export const DownloadsView: React.FC = () => {
                           </div>
                           <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-red-600 rounded-full transition-all duration-300"
+                              className="h-full rounded-full transition-all duration-300 shimmer-progress"
                               style={{ width: `${Math.max(3, item.progress)}%` }}
                             />
                           </div>
@@ -190,7 +190,7 @@ export const DownloadsView: React.FC = () => {
                         </span>
                         <button
                           onClick={() => handlePlayDownloaded(item)}
-                          className="flex items-center space-x-1.5 px-4 py-2 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-lg transition-transform hover:scale-105 cursor-pointer shadow-md"
+                          className="flex items-center space-x-1.5 px-4 py-2 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-lg btn-tactile cursor-pointer shadow-md"
                         >
                           <Play className="w-3.5 h-3.5 fill-black" />
                           <span>Play</span>
@@ -215,7 +215,7 @@ export const DownloadsView: React.FC = () => {
                     {isFailed && (
                       <button
                         onClick={() => retryDownload(item.id)}
-                        className="flex items-center space-x-1 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer mr-1"
+                        className="flex items-center space-x-1 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg btn-tactile cursor-pointer mr-1"
                         title="Retry download"
                       >
                         <RotateCcw className="w-3.5 h-3.5 text-amber-400 mr-1" />
@@ -225,7 +225,7 @@ export const DownloadsView: React.FC = () => {
 
                     <button
                       onClick={() => removeDownload(item.id)}
-                      className="p-2 rounded-lg bg-zinc-800/80 hover:bg-red-600/20 text-zinc-400 hover:text-red-500 transition-colors cursor-pointer"
+                      className="p-2 rounded-lg bg-zinc-800/80 hover:bg-red-600/20 text-zinc-400 hover:text-red-500 btn-tactile cursor-pointer"
                       title={isQueued ? "Remove from queue" : "Delete download"}
                     >
                       <Trash2 className="w-4 h-4" />
