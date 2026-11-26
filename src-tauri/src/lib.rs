@@ -561,6 +561,48 @@ fn open_in_folder(file_path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn delete_download_file(
+    app: tauri::AppHandle,
+    file_path: Option<String>,
+    title: Option<String>,
+) -> Result<(), String> {
+    // 1. Delete explicit file_path if valid
+    if let Some(ref path_str) = file_path {
+        let p = PathBuf::from(path_str);
+        if p.exists() {
+            let _ = std::fs::remove_file(&p);
+        }
+        let part = PathBuf::from(format!("{}.part", path_str));
+        if part.exists() {
+            let _ = std::fs::remove_file(&part);
+        }
+        let ytdl = PathBuf::from(format!("{}.ytdl", path_str));
+        if ytdl.exists() {
+            let _ = std::fs::remove_file(&ytdl);
+        }
+    }
+
+    // 2. Scan downloads directory for safe_title wildcard matches and partial fragments
+    if let Some(ref t) = title {
+        let safe_title = sanitize_filename(t);
+        let downloads_dir = get_default_downloads_dir(&app);
+        if let Ok(entries) = std::fs::read_dir(&downloads_dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with(&safe_title) {
+                    let path = entry.path();
+                    if path.is_file() {
+                        let _ = std::fs::remove_file(&path);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 fn minimize_window(window: tauri::WebviewWindow) {
     let _ = window.minimize();
 }
@@ -599,7 +641,8 @@ pub fn run() {
             start_native_download,
             cancel_native_download,
             check_tmdb_stream,
-            open_in_folder
+            open_in_folder,
+            delete_download_file
         ])
         .setup(|app| {
             let log_path = "C:\\Users\\ARDJOOD\\Desktop\\tauri_run_log.txt";

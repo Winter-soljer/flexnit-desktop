@@ -35,7 +35,7 @@ interface DownloadState {
     episodes: SeasonEpisodeInput[]
   ) => Promise<void>;
   cancelSeasonDownloads: (mediaId: number, seasonNumber: number) => void;
-  removeDownload: (id: string) => void;
+  removeDownload: (id: string) => Promise<void>;
   retryDownload: (id: string) => Promise<void>;
   clearFailedDownloads: () => void;
   updateItem: (id: string, updates: Partial<DownloadItem>) => void;
@@ -219,6 +219,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
       if (item.status === "downloading") {
         downloadEngine.cancelDownload(item.id);
       }
+      downloadEngine.deleteDownloadedFile(item.filePath, item.title);
     });
 
     const cancelledIds = new Set(seasonItems.map((i) => i.id));
@@ -348,6 +349,10 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
   },
 
   clearFailedDownloads: () => {
+    const failed = get().downloads.filter((d) => d.status === "failed");
+    failed.forEach((item) => {
+      downloadEngine.deleteDownloadedFile(item.filePath, item.title);
+    });
     const updated = get().downloads.filter((d) => d.status !== "failed");
     saveDownloads(updated);
     set({ downloads: updated });
@@ -364,10 +369,13 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
     set({ downloads: updated });
   },
 
-  removeDownload: (id: string) => {
+  removeDownload: async (id: string) => {
     const item = get().downloads.find((d) => d.id === id);
-    if (item && item.status === "downloading") {
-      downloadEngine.cancelDownload(id);
+    if (item) {
+      if (item.status === "downloading") {
+        downloadEngine.cancelDownload(id);
+      }
+      await downloadEngine.deleteDownloadedFile(item.filePath, item.title);
     }
     const updated = get().downloads.filter((d) => d.id !== id);
     saveDownloads(updated);

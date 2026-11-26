@@ -549,6 +549,20 @@ export class DownloadEngine {
       invoke("open_in_folder", { filePath }).catch(() => {});
     }
   }
+
+  async deleteDownloadedFile(filePath?: string, title?: string): Promise<boolean> {
+    if (!isTauri) return true;
+    try {
+      await invoke("delete_download_file", {
+        filePath: filePath || null,
+        title: title || null,
+      });
+      return true;
+    } catch (e) {
+      console.warn("Failed to delete downloaded file:", e);
+      return false;
+    }
+  }
 }
 
 export const downloadEngine = new DownloadEngine();
