@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { UnifiedMedia } from "../types/movie";
+import { extractCleanShowTitle } from "../services/tmdb";
 
 export interface WatchHistoryItem {
   media: UnifiedMedia;
@@ -31,7 +32,18 @@ const STORAGE_KEY = "flexnit_recently_watched";
 const loadHistory = (): WatchHistoryItem[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    return raw
+      ? JSON.parse(raw).map((h: WatchHistoryItem) => ({
+          ...h,
+          media: {
+            ...h.media,
+            title:
+              h.media.mediaType === "series"
+                ? extractCleanShowTitle(h.media.title)
+                : h.media.title,
+          },
+        }))
+      : [];
   } catch {
     return [];
   }
@@ -65,8 +77,16 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
         ? Math.min(100, Math.max(0, Math.round((currentTime / duration) * 100)))
         : progressPercent;
 
+    const sanitizedMedia: UnifiedMedia = {
+      ...media,
+      title:
+        media.mediaType === "series"
+          ? extractCleanShowTitle(media.title)
+          : media.title,
+    };
+
     const item: WatchHistoryItem = {
-      media,
+      media: sanitizedMedia,
       progressPercent: calculatedPercent,
       lastWatchedAt: Date.now(),
       season: season ?? existing?.season,

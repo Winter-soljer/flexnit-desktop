@@ -24,6 +24,21 @@ export const getPosterUrl = (path: string | null | undefined) => {
   return `${TMDB_IMAGE_BASE.poster}${path}`;
 };
 
+export function extractCleanShowTitle(title: string | null | undefined, episodeTitle?: string): string {
+  if (!title) return "";
+  let clean = title;
+  if (episodeTitle && episodeTitle.trim().length > 0) {
+    const escaped = episodeTitle.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    clean = clean.replace(new RegExp(`\\s*-\\s*${escaped}$`, "i"), "");
+  }
+  return clean
+    .replace(/\s*-\s*S\d+:\s*E\d+.*$/i, "")
+    .replace(/\s*-\s*S\d+\s*E\d+.*$/i, "")
+    .replace(/\s*-\s*Season\s*\d+.*$/i, "")
+    .replace(/\s*-\s*Episode\s*\d+.*$/i, "")
+    .trim();
+}
+
 const api = axios.create({
   baseURL: BASE_URL,
   params: {

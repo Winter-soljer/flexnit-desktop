@@ -15,7 +15,7 @@ import { streamingService, DEFAULT_STREAM_SOURCES } from "../../services/streami
 import { useDownloadStore } from "../../stores/useDownloadStore";
 import { useHistoryStore } from "../../stores/useHistoryStore";
 import { useProfileStore } from "../../stores/useProfileStore";
-import { tmdbService } from "../../services/tmdb";
+import { tmdbService, extractCleanShowTitle } from "../../services/tmdb";
 import { Season, Episode } from "../../types/movie";
 
 export const VideoPlayerModal: React.FC = () => {
@@ -25,6 +25,7 @@ export const VideoPlayerModal: React.FC = () => {
   const { autoplayNext } = useProfileStore();
 
   const [activeServerId, setActiveServerId] = useState<string>("vidlink");
+  const [seriesName, setSeriesName] = useState<string | null>(null);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [currentSeasonEpisodes, setCurrentSeasonEpisodes] = useState<Episode[]>([]);
   const [showCountdown, setShowCountdown] = useState(false);
@@ -64,8 +65,15 @@ export const VideoPlayerModal: React.FC = () => {
   // Initial record to watch history
   useEffect(() => {
     if (activePlayer && activePlayer.media) {
+      const cleanTitle =
+        (activePlayer.media.mediaType === "series" ? seriesName : null) ||
+        extractCleanShowTitle(activePlayer.media.title);
+
       addToHistory(
-        activePlayer.media,
+        {
+          ...activePlayer.media,
+          title: cleanTitle || activePlayer.media.title,
+        },
         activePlayer.startTime && mediaDuration > 0
           ? Math.round((activePlayer.startTime / mediaDuration) * 100)
           : 15,
@@ -80,6 +88,7 @@ export const VideoPlayerModal: React.FC = () => {
     activePlayer?.season,
     activePlayer?.episode,
     activePlayer?.startTime,
+    seriesName,
     addToHistory,
   ]);
 
@@ -88,12 +97,16 @@ export const VideoPlayerModal: React.FC = () => {
     if (!activePlayer || !activePlayer.media || activePlayer.media.mediaType !== "series") {
       setSeasons([]);
       setCurrentSeasonEpisodes([]);
+      setSeriesName(null);
       return;
     }
     let isMounted = true;
 
     tmdbService.getTvDetails(activePlayer.media.id).then((res) => {
       if (!isMounted) return;
+      if (res.tv?.name) {
+        setSeriesName(res.tv.name);
+      }
       if (res.seasons) {
         setSeasons(res.seasons);
       }
@@ -230,7 +243,10 @@ export const VideoPlayerModal: React.FC = () => {
     setShowCountdown(false);
     setCountdownSeconds(null);
     openPlayer({
-      media,
+      media: {
+        ...media,
+        title: showTitle || media.title,
+      },
       season: nextTarget.season,
       episode: nextTarget.episode,
       sourceId: activeServerId,
@@ -288,12 +304,19 @@ export const VideoPlayerModal: React.FC = () => {
         }
 
         if (activePlayer?.media) {
+          const cleanTitle =
+            (activePlayer.media.mediaType === "series" ? seriesName : null) ||
+            extractCleanShowTitle(activePlayer.media.title);
+
           const pct =
             durationVal && durationVal > 0
               ? Math.round((currentTimeVal / durationVal) * 100)
               : 25;
           addToHistory(
-            activePlayer.media,
+            {
+              ...activePlayer.media,
+              title: cleanTitle || activePlayer.media.title,
+            },
             pct,
             activePlayer.season,
             activePlayer.episode,
@@ -348,6 +371,12 @@ export const VideoPlayerModal: React.FC = () => {
     }
     return d.id === `${media.mediaType}_${media.id}` || d.mediaId === media.id;
   });
+
+  const showTitle =
+    (isSeries ? seriesName : null) ||
+    extractCleanShowTitle(media.title);
+  const currentEpisodeObj = currentSeasonEpisodes.find((e) => e.episode_number === episode);
+  const currentEpisodeName = currentEpisodeObj?.name || downloadItem?.episodeTitle;
 
   if (downloadItem) {
     if (downloadItem.fileUrl) {
@@ -417,7 +446,10 @@ export const VideoPlayerModal: React.FC = () => {
           ? Math.round((targetTime / mediaDuration) * 100)
           : 25;
       addToHistory(
-        activePlayer.media,
+        {
+          ...activePlayer.media,
+          title: showTitle || activePlayer.media.title,
+        },
         pct,
         season,
         episode,
@@ -467,11 +499,21 @@ export const VideoPlayerModal: React.FC = () => {
 
           <div>
             <h2 className="text-base sm:text-lg font-bold leading-tight">
-              {media.mediaType === "series" ? media.title.replace(/ - S\d+:E\d+.*$/i, "").trim() : media.title}
+              {showTitle}
             </h2>
             {isSeries && (
-              <p className="text-xs text-zinc-400">
-                Season {season} • Episode {episode}
+              <p className="text-xs text-zinc-400 flex items-center gap-1.5 flex-wrap">
+                <span className="text-red-400 font-semibold">
+                  Season {season} • Episode {episode}
+                </span>
+                {currentEpisodeName && (
+                  <>
+                    <span>•</span>
+                    <span className="text-zinc-200 font-medium truncate max-w-sm">
+                      {currentEpisodeName}
+                    </span>
+                  </>
+                )}
               </p>
             )}
           </div>

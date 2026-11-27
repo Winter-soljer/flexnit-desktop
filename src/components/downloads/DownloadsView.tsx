@@ -2,7 +2,7 @@ import React from "react";
 import { Download, Play, Trash2, CheckCircle2, Clock, AlertCircle, RotateCcw, Loader2 } from "lucide-react";
 import { useDownloadStore } from "../../stores/useDownloadStore";
 import { useUIStore } from "../../stores/useUIStore";
-import { getPosterUrl, getBackdropUrl } from "../../services/tmdb";
+import { getPosterUrl, getBackdropUrl, extractCleanShowTitle } from "../../services/tmdb";
 import { UnifiedMedia } from "../../types/movie";
 
 export const DownloadsView: React.FC = () => {
@@ -11,9 +11,7 @@ export const DownloadsView: React.FC = () => {
   const hasFailed = downloads.some((d) => d.status === "failed");
 
   const handlePlayDownloaded = (item: any) => {
-    const cleanTitle = item.title
-      ? item.title.replace(/ - S\d+:E\d+.*$/i, "").trim()
-      : "";
+    const cleanTitle = extractCleanShowTitle(item.title, item.episodeTitle);
 
     const media: UnifiedMedia = {
       id: item.mediaId,
@@ -108,11 +106,18 @@ export const DownloadsView: React.FC = () => {
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center space-x-2">
                         <h3 className="text-sm font-bold text-white truncate max-w-md">
-                          {item.title}
+                          {item.mediaType === "series"
+                            ? extractCleanShowTitle(item.title, item.episodeTitle)
+                            : item.title}
                         </h3>
                         {item.season && item.episode && (
                           <span className="shrink-0 text-[10px] bg-red-950/80 border border-red-800/80 text-red-300 font-bold px-1.5 py-0.5 rounded">
                             S{item.season}:E{item.episode}
+                          </span>
+                        )}
+                        {item.episodeTitle && (
+                          <span className="text-xs text-zinc-400 truncate max-w-xs hidden sm:inline">
+                            • {item.episodeTitle}
                           </span>
                         )}
                       </div>
