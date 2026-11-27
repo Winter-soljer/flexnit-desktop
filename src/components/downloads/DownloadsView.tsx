@@ -11,9 +11,13 @@ export const DownloadsView: React.FC = () => {
   const hasFailed = downloads.some((d) => d.status === "failed");
 
   const handlePlayDownloaded = (item: any) => {
+    const cleanTitle = item.title
+      ? item.title.replace(/ - S\d+:E\d+.*$/i, "").trim()
+      : "";
+
     const media: UnifiedMedia = {
       id: item.mediaId,
-      title: item.title,
+      title: cleanTitle || item.title,
       overview: item.episodeTitle || "Downloaded for offline viewing",
       posterPath: item.posterUrl,
       backdropPath: item.backdropUrl,

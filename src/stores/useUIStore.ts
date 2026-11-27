@@ -73,7 +73,15 @@ export const useUIStore = create<UIState>((set) => ({
           if (resolvedPlayer.episode === undefined && historyItem.episode) {
             resolvedPlayer.episode = historyItem.episode;
           }
+
+          // Resume position ONLY applies if it's the exact same episode (or if it's a movie)
+          const isSameEpisode =
+            resolvedPlayer.media.mediaType !== "series" ||
+            (resolvedPlayer.season === historyItem.season &&
+              resolvedPlayer.episode === historyItem.episode);
+
           if (
+            isSameEpisode &&
             resolvedPlayer.startTime === undefined &&
             historyItem.currentTime &&
             historyItem.currentTime > 5

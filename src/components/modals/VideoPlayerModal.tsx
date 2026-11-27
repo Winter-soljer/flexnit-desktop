@@ -126,27 +126,101 @@ export const VideoPlayerModal: React.FC = () => {
   const nextSeasonObj = seasons.find((s) => s.season_number > season);
   const hasNextSeason = !!nextSeasonObj;
 
+  // Check downloaded episodes for this media (for offline fallback & status badges)
+  const completedSeriesDownloads = downloads
+    .filter(
+      (d) =>
+        d.mediaId === activePlayer?.media?.id &&
+        d.status === "completed" &&
+        d.season !== undefined &&
+        d.episode !== undefined
+    )
+    .sort((a, b) => (a.season! - b.season!) || (a.episode! - b.episode!));
+
   let nextTarget: {
     season: number;
     episode: number;
     isNewSeason: boolean;
     label: string;
+    isDownloaded: boolean;
   } | null = null;
 
   if (isSeries) {
-    if (!isLastEpisodeOfSeason) {
+    if (!isLastEpisodeOfSeason && totalEpisodesInSeason > 0) {
+      const targetSeason = season;
+      const targetEpisode = episode + 1;
+      const isDownloaded = completedSeriesDownloads.some(
+        (d) => Number(d.season) === targetSeason && Number(d.episode) === targetEpisode
+      );
       nextTarget = {
-        season,
-        episode: episode + 1,
+        season: targetSeason,
+        episode: targetEpisode,
         isNewSeason: false,
-        label: `Next Ep (S${season} E${episode + 1})`,
+        label: `Next Ep (S${targetSeason} E${targetEpisode}${isDownloaded ? " • Offline" : ""})`,
+        isDownloaded,
       };
     } else if (hasNextSeason && nextSeasonObj) {
+      const targetSeason = nextSeasonObj.season_number;
+      const targetEpisode = 1;
+      const isDownloaded = completedSeriesDownloads.some(
+        (d) => Number(d.season) === targetSeason && Number(d.episode) === targetEpisode
+      );
       nextTarget = {
-        season: nextSeasonObj.season_number,
-        episode: 1,
+        season: targetSeason,
+        episode: targetEpisode,
         isNewSeason: true,
-        label: `Next Season (S${nextSeasonObj.season_number} E1)`,
+        label: `Next Season (S${targetSeason} E1${isDownloaded ? " • Offline" : ""})`,
+        isDownloaded,
+      };
+    } else if (seasons.length === 0 && completedSeriesDownloads.length > 0) {
+      // Offline fallback: find next sequential downloaded episode
+      const nextSameSeason = completedSeriesDownloads.find(
+        (d) => d.season === season && d.episode! > episode
+      );
+      if (nextSameSeason) {
+        nextTarget = {
+          season,
+          episode: nextSameSeason.episode!,
+          isNewSeason: false,
+          label: `Next Ep (S${season} E${nextSameSeason.episode} • Offline)`,
+          isDownloaded: true,
+        };
+      } else {
+        const nextDiffSeason = completedSeriesDownloads.find(
+          (d) => d.season! > season
+        );
+        if (nextDiffSeason) {
+          nextTarget = {
+            season: nextDiffSeason.season!,
+            episode: nextDiffSeason.episode!,
+            isNewSeason: true,
+            label: `Next Season (S${nextDiffSeason.season} E${nextDiffSeason.episode} • Offline)`,
+            isDownloaded: true,
+          };
+        } else {
+          // Default sequential stream
+          nextTarget = {
+            season,
+            episode: episode + 1,
+            isNewSeason: false,
+            label: `Next Ep (S${season} E${episode + 1})`,
+            isDownloaded: false,
+          };
+        }
+      }
+    } else {
+      // Default sequential stream
+      const targetSeason = season;
+      const targetEpisode = episode + 1;
+      const isDownloaded = completedSeriesDownloads.some(
+        (d) => Number(d.season) === targetSeason && Number(d.episode) === targetEpisode
+      );
+      nextTarget = {
+        season: targetSeason,
+        episode: targetEpisode,
+        isNewSeason: false,
+        label: `Next Ep (S${targetSeason} E${targetEpisode}${isDownloaded ? " • Offline" : ""})`,
+        isDownloaded,
       };
     }
   }
@@ -261,14 +335,19 @@ export const VideoPlayerModal: React.FC = () => {
   let isYouTube = false;
   let isLocalVideo = false;
 
-  const downloadItem = downloads.find(
-    (d) =>
-      d.status === "completed" &&
-      (d.fileUrl || d.filePath) &&
-      (d.id === `${media.mediaType}_${media.id}` ||
-        d.id === `tv_${media.id}_s${season}_e${episode}` ||
-        d.mediaId === media.id)
-  );
+  const downloadItem = downloads.find((d) => {
+    if (d.status !== "completed" || (!d.fileUrl && !d.filePath)) {
+      return false;
+    }
+    if (media.mediaType === "series") {
+      return (
+        d.mediaId === media.id &&
+        Number(d.season) === Number(season) &&
+        Number(d.episode) === Number(episode)
+      );
+    }
+    return d.id === `${media.mediaType}_${media.id}` || d.mediaId === media.id;
+  });
 
   if (downloadItem) {
     if (downloadItem.fileUrl) {
@@ -388,7 +467,7 @@ export const VideoPlayerModal: React.FC = () => {
 
           <div>
             <h2 className="text-base sm:text-lg font-bold leading-tight">
-              {media.title}
+              {media.mediaType === "series" ? media.title.replace(/ - S\d+:E\d+.*$/i, "").trim() : media.title}
             </h2>
             {isSeries && (
               <p className="text-xs text-zinc-400">
@@ -454,6 +533,7 @@ export const VideoPlayerModal: React.FC = () => {
       <div className="flex-1 w-full relative bg-black flex items-center justify-center overflow-hidden">
         {isLocalVideo ? (
           <video
+            key={streamUrl}
             ref={videoRef}
             src={streamUrl}
             controls
